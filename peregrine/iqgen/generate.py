@@ -1,0 +1,172 @@
+# Copyright (C) 2016 Swift Navigation Inc.
+#
+# This source is subject to the license found in the file 'LICENSE' which must
+# be be distributed together with this source. All other rights reserved.
+#
+# THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+# EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+
+"""
+The :mod:`peregrine.iqgen.generate` module contains classes and functions
+related to main loop of samples generation.
+
+"""
+from peregrine.iqgen.if_iface import Chip
+from peregrine.iqgen.bits.low_pass_filter import LowPassFilter
+
+from peregrine.iqgen.bits import signals
+
+import scipy
+import time
+
+def generateSamples(fileName,
+                    sv_list,
+                    encoder,
+                    time0S,
+                    nSamples,
+                    SNR=100.,
+                    lowPass=False,
+                    debugLog=False):
+  '''
+  Generates samples.
+
+  Parameters
+  ----------
+  fileName : string
+    Output file name.
+  sv_list : list
+    List of configured satellite objects.
+  encoder : Encoder
+    Output encoder object.
+  time0S : float
+    Time epoch for the first sample.
+  nSamples : long
+    Total number of samples to generate.
+  SNR : float, optional
+    When specified, adds random noise to the output.
+  lowPass : boolean, optional
+    Controls LPF signal post-processing. Disabled by default.
+  debugLog : boolean, optional
+    Control generation of additional debug output. Disabled by default.
+  '''
+
+  #
+  # Print out parameters
+  #
+  print "Generating samples, frequency={} Hz, interval={} seconds, SNR={}".format(
+        Chip.SAMPLE_RATE_HZ, nSamples / Chip.SAMPLE_RATE_HZ, SNR)
+
+  #
+  # Print out SV parameters
+  #
+  for _sv in sv_list:
+    _svNo = _sv.getSvName()
+    _amp = _sv.amplitude
+    _svTime0_s = _sv.doppler.computeSvTimeS(time0S)
+    _dist0_m = _sv.doppler.computeDistanceM(_svTime0_s)
+    _speed_mps = _sv.doppler.computeSpeedMps(_svTime0_s)
+    _bit = signals.GPS.L1CA.getSymbolIndex(_svTime0_s)
+    _c1 = signals.GPS.L1CA.getCodeChipIndex(_svTime0_s)
+    _c2 = signals.GPS.L2C.getCodeChipIndex(_svTime0_s)
+    _d1 = signals.GPS.L1CA.calcDopplerShiftHz(_dist0_m, _speed_mps)
+    _d2 = signals.GPS.L2C.calcDopplerShiftHz(_dist0_m, _speed_mps)
+
+    print "SV[{}]: distance={} m, speed={} m/s, amplitude={}, time0={} s, SV time={} s, symbol={}, l1 chip={}, l2 chip={}, l1 doppler={}, Hz l2 doppler={}".format(
+              _svNo,
+              _dist0_m,
+              _speed_mps,
+              _amp,
+              time0S, _svTime0_s,
+              _bit,
+              _c1, _c2,
+              _d1,
+              _d2
+              )
+
+  _t0 = time.clock()
+  _count = 0l
+
+  if (SNR < 100):
+    Nsigma = scipy.sqrt(1 / (4 * 10 ** (SNR / 10)))
+  else:
+    Nsigma = 0.
+
+  if (lowPass):
+    lpf = [LowPassFilter(), LowPassFilter(), LowPassFilter(), LowPassFilter()]
+  if (debugLog): _out_txt = open("out.txt", "wt");
+
+  userTime_s = float(time0S)
+  deltaUserTime_s = float(Chip.SAMPLE_BATCH_SIZE) / Chip.SAMPLE_RATE_HZ
+  oldPerformanceCounter = 0
+
+  sigs = scipy.ndarray((4, Chip.SAMPLE_BATCH_SIZE), dtype=float)
+
+  with open(fileName, "wb") as _out:
+    for _s in range(0, nSamples, Chip.SAMPLE_BATCH_SIZE):
+
+      # Print performance statistics
+      if (_s > 0 and (_s) % 100000 == 0):
+        newSamples = _s - oldPerformanceCounter
+        oldPerformanceCounter = _s
+        _t1 = time.clock()
+        _rate = float(newSamples) / (_t1 - _t0)
+        _t0 = _t1
+        _nleft = nSamples - _s
+        _timeLeftS = _nleft / _rate
+        _timeLeftM = int(_timeLeftS / 60)
+        _timeLeftH = _timeLeftM / 60
+        _timeLeftD = _timeLeftH / 24
+        _timeLeftH %= 24
+        _timeLeftM %= 60
+        _s1 = int(_timeLeftS % 60)
+        _msec = int((_timeLeftS % 1.) * 1000)
+        print "Generated {} samples; rate={:.02f} samples/sec; est={:02d}:{:02d}:{:02d}:{:02d}.{:03d}".format(
+              _s, _rate,
+              _timeLeftD, _timeLeftH, _timeLeftM, _s1,
+              _msec)
+
+      if (Nsigma != 0.):
+        # Initialize signal array with noise
+        sigs = Nsigma * scipy.randn(4, Chip.SAMPLE_BATCH_SIZE)
+      else:
+        sigs.fill(0.)
+
+      # Sum up signals for all SVs
+      for svIdx in range(len(sv_list)):
+        sv = sv_list[svIdx]
+
+        # Add signal from satellite to signal accumulator
+        t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs)
+
+        # Debugging output
+        if debugLog:
+          sv_sigs = t[0]
+          idx = t[2]
+          codes = t[3]
+          for smpl in range(Chip.SAMPLE_BATCH_SIZE):
+            _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
+
+      if lowPass:
+        # Filter signal values through LPF (IIR Chebyshev type 2)
+        for i in range(4):
+          sigs[i][:] = lpf[i].filter(sigs[i])
+
+      # for s in sv_sigs:
+        # signal_array[Chip.GPS.L1.INDEX] = s
+
+        # Feed data into encoder
+      _bytes = encoder.addSamples(sigs)
+
+      if (len(_bytes) > 0):
+        _count += len(_bytes)
+        _bytes.tofile(_out)
+
+      userTime_s += deltaUserTime_s
+
+    _bytes = encoder.flush()
+    if (len(_bytes) > 0):
+      _bytes.tofile(_out)
+
+    _out.close()
+    if (debugLog): _out_txt.close()
