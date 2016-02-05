@@ -7,7 +7,6 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-
 """
 The :mod:`peregrine.iqgen.satellite` module contains classes and functions
 related to satellite configuration.
@@ -17,6 +16,7 @@ import peregrine.iqgen.bits.signals as signals
 
 from peregrine.iqgen.if_iface import Chip
 
+from peregrine.iqgen.bits.doppler_zero import Doppler
 from peregrine.iqgen.bits.message_const import Message
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
 from peregrine.iqgen.bits.prn_gps_l2c import PrnCode as GPS_L2C_Code
@@ -42,6 +42,7 @@ class SV(object):
     '''
     super(SV, self).__init__()
     self.svName = svName
+    self.doppler = Doppler()
 
   def getSvName(self):
     '''
@@ -150,7 +151,13 @@ class GPS_SV(SV):
       Number of samples to generate.
     samples : numpy.ndarray((4, n_samples))
       Array to which samples are added.
+
+    Returns
+    -------
+    list
+      Debug information
     '''
+    values = []
     if (self.l1caEnabled):
       values = self.doppler.computeBatch(time0_s,
                                          n_samples,
@@ -170,3 +177,25 @@ class GPS_SV(SV):
                                          self.l2cCode)
       numpy.add(samples[Chip.GPS.L2.INDEX], values[0], out=samples[Chip.GPS.L2.INDEX])
     return values
+
+  def isBandEnabled(self, bandIndex):
+    '''
+    Checks if particular band is supported and enabled.
+
+    Parameters
+    ----------
+    bandIndex : int
+      Signal band index
+
+    Returns:
+    bool
+      True, if the band is supported and enabled; False otherwise.
+    '''
+    result = None
+    if bandIndex == Chip.GPS.L1:
+      result = self.l1caEnabled
+    elif bandIndex == Chip.GPS.L2:
+      result = self.l2cEnabled
+    else:
+      result = False
+    return result

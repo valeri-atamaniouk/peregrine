@@ -20,7 +20,7 @@ from peregrine.iqgen.bits import signals
 import scipy
 import time
 
-def generateSamples(fileName,
+def generateSamples(outputFile,
                     sv_list,
                     encoder,
                     time0S,
@@ -45,9 +45,9 @@ def generateSamples(fileName,
     Total number of samples to generate.
   SNR : float, optional
     When specified, adds random noise to the output.
-  lowPass : boolean, optional
+  lowPass : bool, optional
     Controls LPF signal post-processing. Disabled by default.
-  debugLog : boolean, optional
+  debugLog : bool, optional
     Control generation of additional debug output. Disabled by default.
   '''
 
@@ -102,71 +102,69 @@ def generateSamples(fileName,
 
   sigs = scipy.ndarray((4, Chip.SAMPLE_BATCH_SIZE), dtype=float)
 
-  with open(fileName, "wb") as _out:
-    for _s in range(0, nSamples, Chip.SAMPLE_BATCH_SIZE):
+  for _s in range(0, nSamples, Chip.SAMPLE_BATCH_SIZE):
 
-      # Print performance statistics
-      if (_s > 0 and (_s) % 100000 == 0):
-        newSamples = _s - oldPerformanceCounter
-        oldPerformanceCounter = _s
-        _t1 = time.clock()
-        _rate = float(newSamples) / (_t1 - _t0)
-        _t0 = _t1
-        _nleft = nSamples - _s
-        _timeLeftS = _nleft / _rate
-        _timeLeftM = int(_timeLeftS / 60)
-        _timeLeftH = _timeLeftM / 60
-        _timeLeftD = _timeLeftH / 24
-        _timeLeftH %= 24
-        _timeLeftM %= 60
-        _s1 = int(_timeLeftS % 60)
-        _msec = int((_timeLeftS % 1.) * 1000)
-        print "Generated {} samples; rate={:.02f} samples/sec; est={:02d}:{:02d}:{:02d}:{:02d}.{:03d}".format(
-              _s, _rate,
-              _timeLeftD, _timeLeftH, _timeLeftM, _s1,
-              _msec)
+    # Print performance statistics
+    if (_s > 0 and (_s) % 100000 == 0):
+      newSamples = _s - oldPerformanceCounter
+      oldPerformanceCounter = _s
+      _t1 = time.clock()
+      _rate = float(newSamples) / (_t1 - _t0)
+      _t0 = _t1
+      _nleft = nSamples - _s
+      _timeLeftS = _nleft / _rate
+      _timeLeftM = int(_timeLeftS / 60)
+      _timeLeftH = _timeLeftM / 60
+      _timeLeftD = _timeLeftH / 24
+      _timeLeftH %= 24
+      _timeLeftM %= 60
+      _s1 = int(_timeLeftS % 60)
+      _msec = int((_timeLeftS % 1.) * 1000)
+      print "Generated {} samples; rate={:.02f} samples/sec; est={:02d}:{:02d}:{:02d}:{:02d}.{:03d}".format(
+            _s, _rate,
+            _timeLeftD, _timeLeftH, _timeLeftM, _s1,
+            _msec)
 
-      if (Nsigma != 0.):
-        # Initialize signal array with noise
-        sigs = Nsigma * scipy.randn(4, Chip.SAMPLE_BATCH_SIZE)
-      else:
-        sigs.fill(0.)
+    if (Nsigma != 0.):
+      # Initialize signal array with noise
+      sigs = Nsigma * scipy.randn(4, Chip.SAMPLE_BATCH_SIZE)
+    else:
+      sigs.fill(0.)
 
-      # Sum up signals for all SVs
-      for svIdx in range(len(sv_list)):
-        sv = sv_list[svIdx]
+    # Sum up signals for all SVs
+    for svIdx in range(len(sv_list)):
+      sv = sv_list[svIdx]
 
-        # Add signal from satellite to signal accumulator
-        t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs)
+      # Add signal from satellite to signal accumulator
+      t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs)
 
-        # Debugging output
-        if debugLog:
-          sv_sigs = t[0]
-          idx = t[2]
-          codes = t[3]
-          for smpl in range(Chip.SAMPLE_BATCH_SIZE):
-            _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
+      # Debugging output
+      if debugLog:
+        sv_sigs = t[0]
+        idx = t[2]
+        codes = t[3]
+        for smpl in range(Chip.SAMPLE_BATCH_SIZE):
+          _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
 
-      if lowPass:
-        # Filter signal values through LPF (IIR Chebyshev type 2)
-        for i in range(4):
-          sigs[i][:] = lpf[i].filter(sigs[i])
+    if lowPass:
+      # Filter signal values through LPF (IIR Chebyshev type 2)
+      for i in range(4):
+        sigs[i][:] = lpf[i].filter(sigs[i])
 
-      # for s in sv_sigs:
-        # signal_array[Chip.GPS.L1.INDEX] = s
+    # for s in sv_sigs:
+      # signal_array[Chip.GPS.L1.INDEX] = s
 
-        # Feed data into encoder
-      _bytes = encoder.addSamples(sigs)
+      # Feed data into encoder
+    _bytes = encoder.addSamples(sigs)
 
-      if (len(_bytes) > 0):
-        _count += len(_bytes)
-        _bytes.tofile(_out)
-
-      userTime_s += deltaUserTime_s
-
-    _bytes = encoder.flush()
     if (len(_bytes) > 0):
-      _bytes.tofile(_out)
+      _count += len(_bytes)
+      _bytes.tofile(outputFile)
 
-    _out.close()
-    if (debugLog): _out_txt.close()
+    userTime_s += deltaUserTime_s
+
+  _bytes = encoder.flush()
+  if (len(_bytes) > 0):
+    _bytes.tofile(outputFile)
+
+  if (debugLog): _out_txt.close()

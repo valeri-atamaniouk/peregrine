@@ -6,14 +6,14 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-
 """
 The :mod:`peregrine.iqgen.iqgen_main` module contains classes and functions
 related to parameter processing.
 
 """
-from satellite import GPS_SV
 import time
+import argparse
+from peregrine.iqgen.satellite import GPS_SV
 from peregrine.iqgen.bits.doppler_const import constDoppler
 from peregrine.iqgen.bits.doppler_linear import linearDoppler
 from peregrine.iqgen.bits.doppler_zero import Doppler as Stationary
@@ -28,7 +28,7 @@ from peregrine.iqgen.if_iface import Chip
 # Message data
 from peregrine.iqgen.bits.message_const import Message as ConstMessage
 from peregrine.iqgen.bits.message_zeroone import Message as ZeroOneMessage
-from  peregrine.iqgen.bits.message_block import Message as BlockMessage
+from peregrine.iqgen.bits.message_block import Message as BlockMessage
 
 # PRN code generators
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
@@ -46,112 +46,241 @@ def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
   Helper function to compute signal delay to match given symbol and chip
   indexes.
 
-  @param[in] sv           Satellite object
-  @param[in] symbol_index Index of the symbol or pseudosymbol
-  @param[in] chip_index   Chip index
-  @param[in] signal       Signal object
-  @param[in] code         Code object
+  Parameters
+  ----------
+  doppler : object
+    Doppler object
+  symbol_index : long
+    Index of the symbol or pseudosymbol
+  chip_index : long
+    Chip index
+  signal : object
+    Signal object
+  code : object
+    Code object
 
-  @return User's time in seconds when the user starts receiving the given symbol
-          and code.
+  Returns
+  -------
+  float
+     User's time in seconds when the user starts receiving the given symbol
+     and code.
   '''
   symbolDelay_s = (1. / signal.SYMBOL_RATE_HZ) * symbol_index
   chipDelay_s = (1. / signal.CODE_CHIP_RATE_HZ) * chip_index
   distance_m = doppler.computeDistanceM(symbolDelay_s + chipDelay_s)
   return distance_m / scipy.constants.c
 
+def prepareArgsParser():
+  '''
+  Constructs command line argument parser.
+
+  Returns
+  -------
+  object
+    Command line argument parser object.
+  '''
+  class AddSv(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(AddSv, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+      print '%r %r %r' % (namespace, values, option_string)
+      print "Found GPS-SV"
+      sv = GPS_SV(int(values))
+      print "Namespace =", namespace
+      sv_list = getattr(namespace, "gps_sv")
+      if sv_list is None:
+        sv_list = []
+        setattr(namespace, "gps_sv", sv_list)
+      sv_list.append(sv)
+      # Reset all configuration parameters
+      namespace.doppler_type = "zero"
+      namespace.doppler_value = 0.
+      namespace.doppler_speed = 0.
+      namespace.doppler_distance = 0.
+      namespace.message_type = "zero"
+      namespace.amplitude = 1.
+
+  class UpdateSv(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateSv, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+      sv_list = getattr(namespace, "gps_sv")
+      if sv_list is None:
+        raise ValueError("No SV specified")
+      setattr(namespace, self.dest, values)
+      # super(UpdateSv, self).__call__(parser, namespace, values, option_string)
+      self.doUpdate(sv_list[len(sv_list) - 1], parser, namespace, values, option_string)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      pass
+
+  class UpdateBands(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateBands, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      l1caEnabled = False
+      l2cEnabled = False
+      if namespace.bands == "l1ca":
+        l1caEnabled = True
+      elif namespace.bands == "l2c":
+        l2cEnabled = True
+      elif namespace.bands == "l1ca+l2c":
+        l1caEnabled = True
+        l2cEnabled = True
+      sv.setL1CAEnabled(l1caEnabled)
+      sv.setL2CEnabled(l2cEnabled)
+
+  class UpdateDopplerType(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateDopplerType, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      if namespace.doppler_type == "zero":
+        doppler = Stationary(namespace.doppler_distance)
+      elif namespace.doppler_type == "zero2":
+        doppler = Stationary2(namespace.doppler_distance)
+      elif namespace.doppler_type == "const":
+        if sv.l1caEnabled:
+          frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
+        elif sv.l2Enabled:
+          frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
+        else:
+          raise ValueError("Signal band must be specified before doppler")
+        doppler = constDoppler(namespace.doppler_distance, frequency_hz, namespace.doppler_value)
+        sv.doppler = doppler
+      elif namespace.doppler_type == "linear":
+        if sv.l1caEnabled:
+          frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
+        elif sv.l2Enabled:
+          frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
+        else:
+          raise ValueError("Signal band must be specified before doppler")
+        doppler = linearDoppler(namespace.doppler_distance, namespace.doppler_value, frequency_hz, namespace.doppler_speed)
+        sv.doppler = doppler
+      else:
+        raise ValueError("Unsupported doppler type")
+
+  class UpdateMessageType(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateMessageType, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      if namespace.message_type == "zero":
+        message = ConstMessage(1)
+      elif namespace.message_type == "one":
+        message = ConstMessage(-1)
+      elif namespace.message_type == "zero+one":
+        message = ZeroOneMessage()
+      else:
+        raise ValueError("Unsupported message type")
+      sv.setL1CAMessage(message)
+      sv.setL2CMessage(message)
+
+  class UpdateAmplitude(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateAmplitude, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      sv.setAmplitude(namespace.amplitude)
+
+  parser = argparse.ArgumentParser(description="Signal generator", usage='%(prog)s [options]')
+  parser.add_argument('--gps-sv', default=[], help='Enable GPS satellite', action=AddSv)
+  parser.add_argument('--bands', default="l1ca", choices=["l1ca", "l2c", "l1ca+l2c"], help="Signal bands to enable", action=UpdateBands)
+  parser.add_argument('--doppler-type', default="zero", choices=["zero", "zero2", "const", "linear"], help="Configure doppler type", action=UpdateDopplerType)
+  parser.add_argument('--doppler-value', type=float, default=-10., help="Doppler shift in hertz (initial)", action=UpdateDopplerType)
+  parser.add_argument('--doppler-speed', type=float, default=-10., help="Doppler shift change in herts/second", action=UpdateDopplerType)
+  parser.add_argument('--doppler-distance', type=float, help="Distance in meters (initial)", action=UpdateDopplerType)
+  parser.add_argument('--message-type', default="zero", choices=["zero", "one", "zero+one"], help="Message type", action=UpdateMessageType)
+  parser.add_argument('--amplitude', type=float, default=1., help="Amplitude")
+  parser.add_argument('--symbol_delay', type=int, help="Initial symbol index")
+  parser.add_argument('--chip_delay', type=int, help="Initial chip index")
+  parser.add_argument('--lpf', default=False, help="Enable low pass filter", action='store_true')
+  parser.add_argument('--snr', type=float, help="SNR for noise generation")
+  parser.add_argument('--debug', default=False, help="Enable debug output", action='store_true')
+  parser.add_argument('--interval', type=float, default=3., help="Interval duration in seconds")
+  parser.add_argument('--encoder', default="1bit", choices=["1bit", "2bits"], help="Output data format")
+  parser.add_argument('--output', type=argparse.FileType('wb'), help="Output file name")
+
+  return parser
+
 def main():
-  svs = [ GPS_SV(22) ]  # SV list
+  parser = prepareArgsParser()
+  args = parser.parse_args()
+  for i in args.gps_sv:
+    print "SV", i.getSvName()
+
+  if args.output is None:
+    parser.print_help()
+    return 0
+
+  # svs = [ GPS_SV(22) ]  # SV list
   SNR = 100  # Power for some C/No control . When 100 - disabled
-  useLpf = False
-  n_seconds = 3  # Total number of seconds to generate samples
-  initial_symbol_idx = 0  # Initial symbol index
-  initial_chip_idx = 0  # Initial chip index
-  distance0_m = 0.
-  doppler0_hz = 10.
-  amplitude = 1.
-  dopplerSpeed_hzps = 1.
-  enableDebugLog = False
 
-  enableGPSL1 = True
-  enableGPSL2 = False
+  enabledGPSL1 = False
+  enabledGPSL2 = False
 
-  if enableGPSL1:
-    frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
+  for sv in args.gps_sv:
+    enabledGPSL1 |= sv.isBandEnabled(Chip.GPS.L1.INDEX)
+    enabledGPSL2 |= sv.isBandEnabled(Chip.GPS.L2.INDEX)
+
+  # Configure data encoder
+  if args.encoder == "1bit":
+    if enabledGPSL1 and enabledGPSL2:
+      encoder = GPSL1L2BitEncoder()
+    elif enabledGPSL2:
+      encoder = GPSL2BitEncoder()
+    else:
+      encoder = GPSL1BitEncoder()
+  else:
+    raise ValueError("Encoder type is not supported")
+
+  if enabledGPSL1:
     signal = signals.GPS.L1CA
     code = GPS_L1CA_Code
-  elif enableGPSL2:
-    frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
+  elif enabledGPSL2:
     signal = signals.GPS.L2C
     code = GPS_L2C_Code
-
-  def zeroDoppler(): return Stationary(distance0_m)
-  def zeroDoppler2(): return Stationary2(distance0_m)
-  def constDoppler2(): return constDoppler(distance0_m, frequency_hz, doppler0_hz)
-  def linearDoppler2(): return linearDoppler(distance0_m, doppler0_hz, frequency_hz, dopplerSpeed_hzps)
-
-  messageVariant = 0
-  encoderVariant = 0
-  dopplerVariant = 1
-
-  if enableGPSL1 and enableGPSL2:
-    encoderVariant = 2
-  elif enableGPSL1:
-    encoderVariant = 0
-  elif enableGPSL2:
-    encoderVariant = 1
   else:
-    raise BaseException
-
-  encoders = [GPSL1BitEncoder(), GPSL2BitEncoder(), GPSL1L2BitEncoder()]
-  messages = [ConstMessage(1), ConstMessage(1), ZeroOneMessage()]
-  dopplers = [constDoppler2, linearDoppler2, zeroDoppler, zeroDoppler2]
-
-  for sv in svs:
-    # Choose symbol data
-    sv.setL1CAMessage(messages[messageVariant])
-    sv.setL2CMessage(messages[messageVariant])
-
-    # Set some amplitude in range (0.8;1.0), mean 0.9
-    sv.setAmplitude(amplitude)
-
-    # Choose doppler function. Can be anything from doppler.py
-    sv.doppler = dopplers[dopplerVariant]()
-
-    # Enable bands
-    sv.setL1CAEnabled(enableGPSL1)  # Enabled L1 C/A
-    sv.setL2CEnabled(enableGPSL2)  # Enable L2 C
-
-    # print "PRN=[",
-    # for i in range(sv.l1caCode.CODE_LENGTH):
-    #   print sv.l1caCode.getCodeBit(i),
-    # print "]"
+    signal = signals.GPS.L1CA
+    code = GPS_L1CA_Code
 
   # Compute time delay for the needed bit/chip number
   # This delay is computed for the first satellite
-  time0_s = computeTimeDelay(svs[0].doppler,
+  initial_symbol_idx = 0  # Initial symbol index
+  initial_chip_idx = 0  # Initial chip index
+  if args.chip_delay is not None:
+    initial_chip_idx = args.chip_delay
+  if args.symbol_delay is not None:
+    initial_chip_idx = args.symbol_delay
+
+  time0_s = computeTimeDelay(args.gps_sv[0].doppler,
                              initial_symbol_idx,
                              initial_chip_idx,
                              signal,
                              code)
   print "Computed symbol/chip delay={} seconds".format(time0_s)
 
-  # Configure data encoder
-  _encoder = encoders[encoderVariant]
+  startTime_s = time.clock()
+  _n_samples = long(Chip.SAMPLE_RATE_HZ * args.interval)
 
-  _t0 = time.clock()
-  _n_samples = long(Chip.SAMPLE_RATE_HZ) * n_seconds  # 1 second
+  print "Generating {} samples for {} seconds".format(_n_samples, args.interval)
 
-  print "Generating {} samples for {} seconds".format(_n_samples, n_seconds)
-
-  generateSamples("build/out.bin", svs, _encoder, time0_s, _n_samples,
+  generateSamples(args.output,
+                  args.gps_sv,
+                  encoder,
+                  time0_s,
+                  _n_samples,
                   SNR=SNR,
-                  lowPass=useLpf,
-                  debugLog=enableDebugLog)
+                  lowPass=args.lpf,
+                  debugLog=args.debug)
+  args.output.close()
 
-  _t1 = time.clock()
-  _ratio = _n_samples / (_t1 - _t0)
-  print "Total time = {} sec. Ratio={} samples per second".format(_t1 - _t0, _ratio)
+  duration_s = time.clock() - startTime_s
+  _ratio = _n_samples / duration_s
+  print "Total time = {} sec. Ratio={} samples per second".format(duration_s, _ratio)
 
 if __name__ == '__main__':
   main()
