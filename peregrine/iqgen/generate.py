@@ -25,7 +25,7 @@ def generateSamples(outputFile,
                     encoder,
                     time0S,
                     nSamples,
-                    SNR=100.,
+                    SNR=None,
                     lowPass=False,
                     debugLog=False):
   '''
@@ -87,8 +87,8 @@ def generateSamples(outputFile,
   _t0 = time.clock()
   _count = 0l
 
-  if (SNR < 100):
-    Nsigma = scipy.sqrt(1 / (4 * 10 ** (SNR / 10)))
+  if SNR is not None:
+    Nsigma = scipy.sqrt(1. / (4. * 10. ** (SNR / 10.)))
   else:
     Nsigma = 0.
 
