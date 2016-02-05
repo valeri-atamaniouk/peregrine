@@ -92,7 +92,7 @@ def main():
 
   messageVariant = 0
   encoderVariant = 0
-  dopplerVariant = 0
+  dopplerVariant = 1
 
   if enableGPSL1 and enableGPSL2:
     encoderVariant = 2

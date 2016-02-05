@@ -6,6 +6,8 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+from peregrine.iqgen import if_iface
+from scipy.stats.vonmises_cython import numpy
 
 """
 The :mod:`peregrine.iqgen.doppler_linear` module contains classes and functions
@@ -38,7 +40,7 @@ class Doppler(object):
     super(Doppler, self).__init__()
     self.distance0_m = distance0_m
     self.speed0_mps = speed0_mps
-    self.acceleation_mps2 = acceleration_mps2
+    self.acceleration_mps2 = acceleration_mps2
     self.tau0_s = self.distance0_m / scipy.constants.c
 
   def computeDistanceM(self, svTime_s):
@@ -56,7 +58,7 @@ class Doppler(object):
     float
       Distance to satellite in meters.
     '''
-    return self.distance0_m + self.speed0_mps * svTime_s + 0.5 * self.acceleation_mps2 * svTime_s * svTime_s
+    return self.distance0_m + self.speed0_mps * svTime_s + 0.5 * self.acceleration_mps2 * svTime_s * svTime_s
 
   def computeSpeedMps(self, svTime_s):
     '''
@@ -73,7 +75,7 @@ class Doppler(object):
     float
       Speed of satellite in meters per second.
     '''
-    return self.speed0_mps + self.acceleation_mps2 * svTime_s
+    return self.speed0_mps + self.acceleration_mps2 * svTime_s
 
   def computeSvTimeS(self, userTime_s):
     '''
@@ -93,7 +95,7 @@ class Doppler(object):
       Satellite vehicle's time at which signal has been generated.
     '''
 
-    _ax2 = self.acceleation_mps2
+    _ax2 = self.acceleration_mps2
     _b = scipy.constants.c + self.speed0_mps
     _c = self.distance0_m - userTime_s * scipy.constants.c
 
@@ -150,7 +152,53 @@ class Doppler(object):
       Code combined with data
     '''
 
-    raise Exception
+    deltaUserTime_s = float(n_samples) / if_iface.Chip.SAMPLE_RATE_HZ
+    userTimeX_s = userTime0_s + deltaUserTime_s
+    userTimeAll_s = scipy.linspace(userTime0_s, userTimeX_s, n_samples, endpoint=False)
+
+    # Compute SV time and initial distance
+    svTime0_s = self.computeSvTimeS(userTime0_s)
+    svTimeX_s = self.computeSvTimeS(userTimeX_s)
+
+    # Average speed in meters/second for distance computations
+    avgSpeed0_mps = self.speed0_mps + 0.5 * self.acceleration_mps2 * svTime0_s
+    avgSpeedX_mps = self.speed0_mps + 0.5 * self.acceleration_mps2 * svTimeX_s
+
+    # Speed in meters/second
+    speed0_mps = self.speed0_mps + self.acceleration_mps2 * svTime0_s
+    speedX_mps = self.speed0_mps + self.acceleration_mps2 * svTimeX_s
+
+    # Phase = 2 * pi * Tu * (Fi + Fd); Fd - linear
+    doppler0_hz = -planFrequency_hz / scipy.constants.c * speed0_mps
+    dopplerX_hz = -planFrequency_hz / scipy.constants.c * speedX_mps
+    temp = scipy.linspace(doppler0_hz, dopplerX_hz, n_samples, endpoint=False)
+    temp += ifFrequency_hz
+    temp *= scipy.constants.pi * 2.
+    signal = temp * userTimeAll_s
+
+    # Convert phase to signal value and multiply by amplitude
+    scipy.sin(signal, signal)
+    scipy.multiply(signal, amplitude, signal)
+
+    # PRN and data index computation
+    distanceAll_m = scipy.linspace(avgSpeed0_mps, avgSpeedX_mps, n_samples, endpoint=False, retstep=False)
+    distanceAll_m *= userTimeAll_s
+    distanceAll_m += self.distance0_m
+    tauAll_s = numpy.divide(distanceAll_m, scipy.constants.c)
+    svTimeAll_s = userTimeAll_s - tauAll_s
+    chipAll_idx = svTimeAll_s * 1023000.
+
+    def dataChip(idx):
+      chipIdx = long(idx)
+      dataIdx = chipIdx / (1023 * 20)
+      x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
+      return x
+
+    vdata = scipy.vectorize(dataChip)
+    chips = vdata(chipAll_idx)
+
+    scipy.multiply(signal, chips, signal)
+    return (signal, userTimeX_s, chipAll_idx, chips)
 
 def linearDoppler(distance0m, dopplerShift0Hz, frequencyHz, dopplerShiftSpeedHzps):
   '''
