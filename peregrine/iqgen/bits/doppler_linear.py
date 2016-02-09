@@ -156,37 +156,37 @@ class Doppler(object):
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s, userTimeX_s, n_samples, endpoint=False)
 
-    # Compute SV time and initial distance
-    svTime0_s = self.computeSvTimeS(userTime0_s)
-    svTimeX_s = self.computeSvTimeS(userTimeX_s)
+    print "User time", userTime0_s, userTimeX_s
 
-    # Average speed in meters/second for distance computations
-    avgSpeed0_mps = self.speed0_mps + 0.5 * self.acceleration_mps2 * svTime0_s
-    avgSpeedX_mps = self.speed0_mps + 0.5 * self.acceleration_mps2 * svTimeX_s
+    # Compute SV time and initial distance
+    # svTime0_s = self.computeSvTimeS(userTime0_s)
+    # svTimeX_s = self.computeSvTimeS(userTimeX_s)
 
     # Speed in meters/second
-    speed0_mps = self.speed0_mps + self.acceleration_mps2 * svTime0_s
-    speedX_mps = self.speed0_mps + self.acceleration_mps2 * svTimeX_s
+    speed0_mps = self.acceleration_mps2 * userTime0_s  # + self.speed0_mps
+    speedX_mps = self.acceleration_mps2 * userTimeX_s  # + self.speed0_mps
 
-    # Phase = 2 * pi * Tu * (Fi + Fd); Fd - linear
+    print "Speed 0-x", speed0_mps, speedX_mps
+
+    # Doppler vector
     doppler0_hz = -planFrequency_hz / scipy.constants.c * speed0_mps
     dopplerX_hz = -planFrequency_hz / scipy.constants.c * speedX_mps
-    temp = scipy.linspace(doppler0_hz, dopplerX_hz, n_samples, endpoint=False)
-    temp += ifFrequency_hz
-    temp *= scipy.constants.pi * 2.
-    signal = temp * userTimeAll_s
+    dopplerAll_hz = scipy.linspace(doppler0_hz, dopplerX_hz, n_samples, endpoint=False)
+    numpy.cumsum(dopplerAll_hz, dtype=numpy.float64, out=dopplerAll_hz)
+
+    signal = scipy.constants.pi * 2. * (ifFrequency_hz + dopplerAll_hz) * userTimeAll_s
 
     # Convert phase to signal value and multiply by amplitude
     scipy.sin(signal, signal)
     scipy.multiply(signal, amplitude, signal)
 
     # PRN and data index computation
-    distanceAll_m = scipy.linspace(avgSpeed0_mps, avgSpeedX_mps, n_samples, endpoint=False, retstep=False)
-    distanceAll_m *= userTimeAll_s
-    distanceAll_m += self.distance0_m
-    tauAll_s = numpy.divide(distanceAll_m, scipy.constants.c)
-    svTimeAll_s = userTimeAll_s - tauAll_s
-    chipAll_idx = svTimeAll_s * 1023000.
+    chipDoppler0_hz = -1023000. / scipy.constants.c * speed0_mps
+    chipDopplerX_hz = -1023000. / scipy.constants.c * speedX_mps
+    chipDopplerAll_hz = scipy.linspace(chipDoppler0_hz, chipDopplerX_hz, n_samples, endpoint=False)
+    numpy.cumsum(chipDopplerAll_hz, dtype=numpy.float64, out=chipDopplerAll_hz)
+
+    chipAll_idx = (1023000. + chipDopplerAll_hz) * userTimeAll_s
 
     def dataChip(idx):
       chipIdx = long(idx)
