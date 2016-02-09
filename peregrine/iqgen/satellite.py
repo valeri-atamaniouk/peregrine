@@ -162,7 +162,7 @@ class GPS_SV(SV):
       values = self.doppler.computeBatch(time0_s,
                                          n_samples,
                                          self.amplitude,
-                                         signals.GPS.L1CA.CENTER_FREQUENCY_HZ,
+                                         signals.GPS.L1CA,
                                          Chip.GPS.L1.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l1caMessage,
                                          self.l1caCode)
@@ -171,7 +171,7 @@ class GPS_SV(SV):
       values = self.doppler.computeBatch(time0_s,
                                          n_samples,
                                          self.amplitude,
-                                         signals.GPS.L2C.CENTER_FREQUENCY_HZ,
+                                         signals.GPS.L2C,
                                          Chip.GPS.L2.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l2cMessage,
                                          self.l2cCode)

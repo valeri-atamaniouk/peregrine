@@ -89,7 +89,7 @@ class Doppler(object):
                    userTime0_s,
                    n_samples,
                    amplitude,
-                   planFrequency_hz,
+                   carrierSignal,
                    ifFrequency_hz,
                    message,
                    code):
@@ -104,8 +104,8 @@ class Doppler(object):
       Number of samples to generate
     amplitude : float
       Signal amplitude.
-    planFrequency_hz : float
-      Central carrier frequency in hertz
+    carrierSignal : object
+      Carrier frequency object
     ifFrequency_hz: float
       Intermediate frequency in hertz
     message : object
@@ -137,17 +137,17 @@ class Doppler(object):
     numpy.sin(signal, dtype=numpy.float64, out=signal)
     numpy.multiply(signal, amplitude, dtype=numpy.float64, out=signal)
 
-    chip1_s = 1023000. / peregrine.iqgen.if_iface.Chip.SAMPLE_RATE_HZ
+    chip1_s = carrierSignal.CODE_CHIP_RATE_HZ / peregrine.iqgen.if_iface.Chip.SAMPLE_RATE_HZ
     chipAll_idx = numpy.ndarray(n_samples, dtype=numpy.float64);
     chipAll_idx.fill(chip1_s)
-    chipOffset = 1023000. * userTime0_s
+    chipOffset = carrierSignal.CODE_CHIP_RATE_HZ * userTime0_s
     chipAll_idx[0] = chipOffset
     numpy.cumsum(chipAll_idx, dtype=numpy.float64, out=chipAll_idx)
     self.chipOffset = chipAll_idx[len(chipAll_idx) - 1]
 
     def dataChip(idx):
       chipIdx = long(idx)
-      dataIdx = chipIdx / (1023 * 20)
+      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
       x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
       return x
 

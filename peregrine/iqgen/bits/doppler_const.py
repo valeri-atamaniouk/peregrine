@@ -102,7 +102,7 @@ class Doppler(object):
                    userTime0_s,
                    n_samples,
                    amplitude,
-                   planFrequency_hz,
+                   carrierSignal,
                    ifFrequency_hz,
                    message,
                    code):
@@ -117,8 +117,8 @@ class Doppler(object):
       Number of samples to generate
     amplitude : float
       Signal amplitude.
-    planFrequency_hz : float
-      Central carrier frequency in hertz
+    carrierSignal : object
+      Carrier frequency object
     ifFrequency_hz: float
       Intermediate frequency in hertz
     message : object
@@ -146,7 +146,7 @@ class Doppler(object):
     svTimeX_s = userTimeX_s - tauX_s  # End time
 
     # Compute initial and final signal phases and then phase space
-    doppler_hz = -planFrequency_hz / scipy.constants.c * self.speed_mps
+    doppler_hz = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c * self.speed_mps
     phase0_s = scipy.constants.pi * 2. * (ifFrequency_hz + doppler_hz) * userTime0_s  # svTime0_s
     phaseX_s = scipy.constants.pi * 2. * (ifFrequency_hz + doppler_hz) * userTimeX_s  # svTimeX_s
     signal = scipy.linspace(phase0_s, phaseX_s, n_samples, endpoint=False)
@@ -156,13 +156,13 @@ class Doppler(object):
     scipy.multiply(signal, amplitude, signal)
 
     # PRN and data index computation
-    chip0_idx = svTime0_s * 1023000.
-    chipX_idx = svTimeX_s * 1023000.
+    chip0_idx = svTime0_s * carrierSignal.CODE_CHIP_RATE_HZ
+    chipX_idx = svTimeX_s * carrierSignal.CODE_CHIP_RATE_HZ
     chipAll_idx = scipy.linspace(chip0_idx, chipX_idx, n_samples, endpoint=False)
 
     def dataChip(idx):
       chipIdx = long(idx)
-      dataIdx = chipIdx / (1023 * 20)
+      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
       x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
       return x
 

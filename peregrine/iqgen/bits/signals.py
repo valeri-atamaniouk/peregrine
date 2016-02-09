@@ -58,6 +58,7 @@ class GPS:
     SYMBOL_RATE_HZ = 50
     CENTER_FREQUENCY_HZ = 1575.42e6
     CODE_CHIP_RATE_HZ = 1023000
+    CHIP_TO_SYMBOL_DIVIDER = 20460
 
     @staticmethod
     def calcDopplerShiftHz(distance_m, velocity_mps):
@@ -121,6 +122,7 @@ class GPS:
     SYMBOL_RATE_HZ = 50
     CENTER_FREQUENCY_HZ = 1227.60e6
     CODE_CHIP_RATE_HZ = 1023000
+    CHIP_TO_SYMBOL_DIVIDER = 20460
 
     @staticmethod
     def calcDopplerShiftHz(distance_m, velocity_mps):
