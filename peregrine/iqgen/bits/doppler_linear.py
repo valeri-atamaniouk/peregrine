@@ -19,6 +19,9 @@ import math
 import scipy.constants
 
 class Doppler(object):
+
+  NAME = "LinearDoppler"
+
   '''
   Doppler control for an object that has constant acceleration. Such signal has
   constant doppler value with a possible sign invert.

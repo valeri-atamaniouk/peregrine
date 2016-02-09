@@ -17,6 +17,9 @@ import scipy.constants
 from peregrine.iqgen import if_iface
 
 class Doppler(object):
+
+  NAME = "ConstDoppler"
+
   '''
   Doppler control for a signal source that moves with a constant speed.
   '''

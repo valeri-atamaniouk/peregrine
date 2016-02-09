@@ -18,6 +18,9 @@ import scipy.constants
 import peregrine.iqgen.if_iface
 
 class Doppler(object):
+
+  NAME = "ZeroDoppler"
+
   '''
   Doppler control for non-moving signal source.
   '''

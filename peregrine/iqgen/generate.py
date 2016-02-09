@@ -72,7 +72,7 @@ def generateSamples(outputFile,
     _d1 = signals.GPS.L1CA.calcDopplerShiftHz(_dist0_m, _speed_mps)
     _d2 = signals.GPS.L2C.calcDopplerShiftHz(_dist0_m, _speed_mps)
 
-    print "SV[{}]: distance={} m, speed={} m/s, amplitude={}, time0={} s, SV time={} s, symbol={}, l1 chip={}, l2 chip={}, l1 doppler={}, Hz l2 doppler={}".format(
+    print "SV[{}]: distance={} m, speed={} m/s, amplitude={}, time0={} s, SV time={} s, symbol={}, l1 chip={}, l2 chip={}, l1 doppler={}, Hz l2 doppler={} name={}".format(
               _svNo,
               _dist0_m,
               _speed_mps,
@@ -81,7 +81,8 @@ def generateSamples(outputFile,
               _bit,
               _c1, _c2,
               _d1,
-              _d2
+              _d2,
+              _sv.doppler.NAME
               )
 
   _t0 = time.clock()

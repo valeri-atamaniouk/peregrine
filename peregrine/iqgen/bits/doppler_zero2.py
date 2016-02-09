@@ -19,6 +19,9 @@ import peregrine.iqgen.if_iface
 import numpy
 
 class Doppler(object):
+
+  NAME = "Zero2Doppler"
+
   '''
   Doppler control for non-moving signal source.
 
