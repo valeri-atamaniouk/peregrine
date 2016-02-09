@@ -54,7 +54,7 @@ def generateSamples(outputFile,
   #
   # Print out parameters
   #
-  print "Generating samples, frequency={} Hz, interval={} seconds, SNR={}".format(
+  print "Generating samples, sample rate={} Hz, interval={} seconds, SNR={}".format(
         Chip.SAMPLE_RATE_HZ, nSamples / Chip.SAMPLE_RATE_HZ, SNR)
 
   #

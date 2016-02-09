@@ -217,7 +217,6 @@ def main():
     return 0
 
   # svs = [ GPS_SV(22) ]  # SV list
-  SNR = 100  # Power for some C/No control . When 100 - disabled
 
   enabledGPSL1 = False
   enabledGPSL2 = False
@@ -273,7 +272,7 @@ def main():
                   encoder,
                   time0_s,
                   _n_samples,
-                  SNR=SNR,
+                  SNR=args.snr,
                   lowPass=args.lpf,
                   debugLog=args.debug)
   args.output.close()
