@@ -18,6 +18,7 @@ from peregrine.iqgen.bits.doppler_const import constDoppler
 from peregrine.iqgen.bits.doppler_linear import linearDoppler
 from peregrine.iqgen.bits.doppler_zero import Doppler as Stationary
 from peregrine.iqgen.bits.doppler_zero2 import Doppler as Stationary2
+from peregrine.iqgen.bits.doppler_sine import sineDoppler
 
 # from signals import GPS, GPS_L2C_Signal, GPS_L1CA_Signal
 import peregrine.iqgen.bits.signals as signals
@@ -100,6 +101,8 @@ def prepareArgsParser():
       namespace.doppler_distance = 0.
       namespace.message_type = "zero"
       namespace.amplitude = 1.
+      namespace.doppler_amplitude = 0.
+      namespace.doppler_period = 1.
 
   class UpdateSv(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -138,27 +141,34 @@ def prepareArgsParser():
       super(UpdateDopplerType, self).__init__(option_strings, dest, **kwargs)
 
     def doUpdate(self, sv, parser, namespace, values, option_string):
+      if sv.l1caEnabled:
+        frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
+      elif sv.l2Enabled:
+        frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
+      else:
+        raise ValueError("Signal band must be specified before doppler")
+
       if namespace.doppler_type == "zero":
         doppler = Stationary(namespace.doppler_distance)
       elif namespace.doppler_type == "zero2":
         doppler = Stationary2(namespace.doppler_distance)
       elif namespace.doppler_type == "const":
-        if sv.l1caEnabled:
-          frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
-        elif sv.l2Enabled:
-          frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
-        else:
-          raise ValueError("Signal band must be specified before doppler")
-        doppler = constDoppler(namespace.doppler_distance, frequency_hz, namespace.doppler_value)
+        doppler = constDoppler(namespace.doppler_distance, 
+                               frequency_hz, 
+                               namespace.doppler_value)
         sv.doppler = doppler
       elif namespace.doppler_type == "linear":
-        if sv.l1caEnabled:
-          frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
-        elif sv.l2Enabled:
-          frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
-        else:
-          raise ValueError("Signal band must be specified before doppler")
-        doppler = linearDoppler(namespace.doppler_distance, namespace.doppler_value, frequency_hz, namespace.doppler_speed)
+        doppler = linearDoppler(namespace.doppler_distance, 
+                                namespace.doppler_value, 
+                                frequency_hz, 
+                                namespace.doppler_speed)
+        sv.doppler = doppler
+      elif namespace.doppler_type == "sine":
+        doppler = sineDoppler(namespace.doppler_distance,
+                              namespace.doppler_value,
+                              frequency_hz,
+                              namespace.doppler_amplitude, 
+                              namespace.doppler_period)
         sv.doppler = doppler
       else:
         raise ValueError("Unsupported doppler type")
@@ -187,22 +197,79 @@ def prepareArgsParser():
       sv.setAmplitude(namespace.amplitude)
 
   parser = argparse.ArgumentParser(description="Signal generator", usage='%(prog)s [options]')
-  parser.add_argument('--gps-sv', default=[], help='Enable GPS satellite', action=AddSv)
-  parser.add_argument('--bands', default="l1ca", choices=["l1ca", "l2c", "l1ca+l2c"], help="Signal bands to enable", action=UpdateBands)
-  parser.add_argument('--doppler-type', default="zero", choices=["zero", "zero2", "const", "linear"], help="Configure doppler type", action=UpdateDopplerType)
-  parser.add_argument('--doppler-value', type=float, default=-10., help="Doppler shift in hertz (initial)", action=UpdateDopplerType)
-  parser.add_argument('--doppler-speed', type=float, default=-10., help="Doppler shift change in herts/second", action=UpdateDopplerType)
-  parser.add_argument('--doppler-distance', type=float, help="Distance in meters (initial)", action=UpdateDopplerType)
-  parser.add_argument('--message-type', default="zero", choices=["zero", "one", "zero+one"], help="Message type", action=UpdateMessageType)
-  parser.add_argument('--amplitude', type=float, default=1., help="Amplitude")
-  parser.add_argument('--symbol_delay', type=int, help="Initial symbol index")
-  parser.add_argument('--chip_delay', type=int, help="Initial chip index")
-  parser.add_argument('--lpf', default=False, help="Enable low pass filter", action='store_true')
-  parser.add_argument('--snr', type=float, help="SNR for noise generation")
-  parser.add_argument('--debug', default=False, help="Enable debug output", action='store_true')
-  parser.add_argument('--interval', type=float, default=3., help="Interval duration in seconds")
-  parser.add_argument('--encoder', default="1bit", choices=["1bit", "2bits"], help="Output data format")
-  parser.add_argument('--output', type=argparse.FileType('wb'), help="Output file name")
+  parser.add_argument('--gps-sv', 
+                      default=[], 
+                      help='Enable GPS satellite',
+                      action=AddSv)
+  parser.add_argument('--bands',
+                      default="l1ca", 
+                      choices=["l1ca", "l2c", "l1ca+l2c"], 
+                      help="Signal bands to enable", 
+                      action=UpdateBands)
+  parser.add_argument('--doppler-type', 
+                      default="zero", 
+                      choices=["zero", "zero2", "const", "linear", "size"], 
+                      help="Configure doppler type", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-value', 
+                      type=float, 
+                      default=-10., 
+                      help="Doppler shift in hertz (initial)", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-speed', 
+                      type=float, 
+                      default=-10., 
+                      help="Doppler shift change in hertz/second", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-distance', 
+                      type=float, 
+                      help="Distance in meters (initial)", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-amplitude', 
+                      type=float, 
+                      default=-10.,
+                      help="Doppler change amplitude (hertz)", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-period', 
+                      type=float,
+                      help="Doppler change period (seconds)", 
+                      action=UpdateDopplerType)
+  parser.add_argument('--message-type', default="zero", 
+                      choices=["zero", "one", "zero+one"], 
+                      help="Message type", 
+                      action=UpdateMessageType)
+  parser.add_argument('--amplitude', 
+                      type=float, 
+                      default=1., 
+                      help="Amplitude")
+  parser.add_argument('--symbol_delay', 
+                      type=int, 
+                      help="Initial symbol index")
+  parser.add_argument('--chip_delay', 
+                      type=int, 
+                      help="Initial chip index")
+  parser.add_argument('--lpf', 
+                      default=False, 
+                      help="Enable low pass filter", 
+                      action='store_true')
+  parser.add_argument('--snr', 
+                      type=float, 
+                      help="SNR for noise generation")
+  parser.add_argument('--debug', 
+                      default=False, 
+                      help="Enable debug output", 
+                      action='store_true')
+  parser.add_argument('--interval', 
+                      type=float, 
+                      default=3., 
+                      help="Interval duration in seconds")
+  parser.add_argument('--encoder', 
+                      default="1bit", 
+                      choices=["1bit", "2bits"], 
+                      help="Output data format")
+  parser.add_argument('--output', 
+                      type=argparse.FileType('wb'), 
+                      help="Output file name")
 
   return parser
 
