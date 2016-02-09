@@ -99,6 +99,10 @@ class Doppler(object):
     '''
 
     _ax2 = self.acceleration_mps2
+
+    if _ax2 == 0:
+      return userTime_s - self.speed0_mps * userTime_s / scipy.constants.c
+
     _b = scipy.constants.c + self.speed0_mps
     _c = self.distance0_m - userTime_s * scipy.constants.c
 
@@ -159,37 +163,41 @@ class Doppler(object):
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s, userTimeX_s, n_samples, endpoint=False)
 
-    print "User time", userTime0_s, userTimeX_s
-
-    # Compute SV time and initial distance
-    # svTime0_s = self.computeSvTimeS(userTime0_s)
-    # svTimeX_s = self.computeSvTimeS(userTimeX_s)
-
-    # Speed in meters/second
-    speed0_mps = self.acceleration_mps2 * userTime0_s  # + self.speed0_mps
-    speedX_mps = self.acceleration_mps2 * userTimeX_s  # + self.speed0_mps
-
-    print "Speed 0-x", speed0_mps, speedX_mps
-
     # Doppler vector
-    doppler0_hz = -planFrequency_hz / scipy.constants.c * speed0_mps
-    dopplerX_hz = -planFrequency_hz / scipy.constants.c * speedX_mps
-    dopplerAll_hz = scipy.linspace(doppler0_hz, dopplerX_hz, n_samples, endpoint=False)
-    numpy.cumsum(dopplerAll_hz, dtype=numpy.float64, out=dopplerAll_hz)
+    D_a = -planFrequency_hz / scipy.constants.c * self.acceleration_mps2
+    D_0 = -planFrequency_hz / scipy.constants.c * self.speed0_mps
 
-    signal = scipy.constants.pi * 2. * (ifFrequency_hz + dopplerAll_hz) * userTimeAll_s
+    # phaseAll[i] =  ((0.5 * D_a * T[i] + D_0) * T[i] + IF * T[i]) * 2 *pi
+    # 2 * pi * T[i] * (0.5 * D_a * T[i] + D_0 + IF)
+    phaseAll = scipy.ndarray(n_samples, dtype=numpy.float64)
+    phaseAll.fill(D_a * 0.5)
+    phaseAll *= userTimeAll_s
+    phaseAll += D_0
+    phaseAll *= userTimeAll_s
+    phaseAll += ifFrequency_hz * userTimeAll_s
+    phaseAll *= 2 * scipy.constants.pi
+
+    print "Doppler initial=", D_0," change=", D_a, "D=[", phaseAll[0], phaseAll[n_samples-1],"]"
+    # print "User time", userTimeAll_s[0], userTimeAll_s[n_samples - 1]
 
     # Convert phase to signal value and multiply by amplitude
-    scipy.sin(signal, signal)
-    scipy.multiply(signal, amplitude, signal)
+    signal = scipy.sin(phaseAll)
+    signal *= amplitude
 
     # PRN and data index computation
-    chipDoppler0_hz = -1023000. / scipy.constants.c * speed0_mps
-    chipDopplerX_hz = -1023000. / scipy.constants.c * speedX_mps
-    chipDopplerAll_hz = scipy.linspace(chipDoppler0_hz, chipDopplerX_hz, n_samples, endpoint=False)
-    numpy.cumsum(chipDopplerAll_hz, dtype=numpy.float64, out=chipDopplerAll_hz)
+    D_Ca = -1023000. / scipy.constants.c * self.acceleration_mps2
+    D_C0 = -1023000. / scipy.constants.c * self.speed0_mps
 
-    chipAll_idx = (1023000. + chipDopplerAll_hz) * userTimeAll_s
+    # if D_Ca != 0 and D_C0 != 0:
+    #   print "Ratio: ", D_a / D_Ca, D_0 / D_C0
+
+    # Doppler for chips: chip[i] = (0.5 * D_Ca * T[i] + D_C0) * T[i] + CR * T[i]
+    chipAll_idx = scipy.ndarray((n_samples), dtype=numpy.float64)
+    chipAll_idx.fill(D_Ca * 0.5)
+    chipAll_idx *= userTimeAll_s
+    chipAll_idx += D_C0
+    chipAll_idx *= userTimeAll_s
+    chipAll_idx += 1023000. * userTimeAll_s
 
     def dataChip(idx):
       chipIdx = long(idx)
@@ -199,6 +207,7 @@ class Doppler(object):
 
     vdata = scipy.vectorize(dataChip)
     chips = vdata(chipAll_idx)
+    # print "Chips 0..last=", chipAll_idx[0], chipAll_idx[n_samples-1]
 
     scipy.multiply(signal, chips, signal)
     return (signal, userTimeX_s, chipAll_idx, chips)
