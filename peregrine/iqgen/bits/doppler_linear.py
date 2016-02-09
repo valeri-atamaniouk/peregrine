@@ -171,25 +171,26 @@ class Doppler(object):
                                    dtype=TYPE,
                                    endpoint=False)
 
-    # Doppler vector
-    D_a = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c * self.acceleration_mps2
-    D_0 = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c * self.speed0_mps
+    # Computing doppler coefficients
+    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c 
+    D_0 = freqRatio * self.acceleration_mps2
+    D_1 = freqRatio * self.speed0_mps
+    D_2 = freqRatio * self.distance0_m
 
-    # phaseAll[i] =  ((0.5 * D_a * T[i] + D_0) * T[i] + IF * T[i]) * 2 *pi
-    # 2 * pi * T[i] * (0.5 * D_a * T[i] + D_0 + IF)
+    # phaseAll[i] = 0.5 * D_0 * T[i]^2 + (D_1 + IF) * T[i] + D_2) * 2 * pi
 
-    algMode = 2
+    algMode = 1
     if algMode == 1:
       phaseAll = scipy.ndarray(n_samples, dtype=TYPE)
-      phaseAll.fill(D_a * 0.5)
+      phaseAll.fill(D_0 * 0.5)
       phaseAll *= userTimeAll_s
-      phaseAll += D_0
+      phaseAll += D_1
       phaseAll *= userTimeAll_s
-      phaseAll += ifFrequency_hz * userTimeAll_s
+      phaseAll += ifFrequency_hz * userTimeAll_s + D_2
       phaseAll *= 2 * scipy.constants.pi
     elif algMode == 2:
-      K1 = scipy.constants.pi * D_a
-      K2 = 2 * scipy.constants.pi * (D_0 + ifFrequency_hz)
+      K1 = scipy.constants.pi * D_0
+      K2 = 2 * scipy.constants.pi * (D_1 + ifFrequency_hz)
       phasePoint0 = K1 * userTime0_s + K2 
       phasePointX = K1 * userTimeX_s + K2
       phaseAll = scipy.linspace(phasePoint0,
@@ -198,8 +199,9 @@ class Doppler(object):
                                 dtype=TYPE,
                                 endpoint=False)
       phaseAll *= userTimeAll_s
+      phaseAll += D_2
     elif algMode == 3:
-      phi_E = 2 * scipy.constants.pi * D_a / if_iface.Chip.SAMPLE_RATE_HZ
+      phi_E = 2 * scipy.constants.pi * D_0 / if_iface.Chip.SAMPLE_RATE_HZ
       phaseAll = scipy.ndarray(n_samples, dtype=TYPE)
       phaseAll.fill(phi_E + self.phaseShift)
       numpy.cumsum(phaseAll, out=phaseAll)
@@ -212,28 +214,34 @@ class Doppler(object):
     signal *= amplitude
 
     # PRN and data index computation
-    D_Ca = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c * self.acceleration_mps2
-    D_C0 = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c * self.speed0_mps
+    # Computing doppler coefficients
+    # Doppler for chips: chip[i] = 0.5 * D_C0 * T[i]^2 + (D_C1 + F_chip) * T[i] + D_C2
+    
+    chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / carrierSignal.CENTER_FREQUENCY_HZ
+    D_C0 = D_0 * chipFreqRatio
+    D_C1 = D_1 * chipFreqRatio
+    D_C2 = D_2 * chipFreqRatio
 
-    # Doppler for chips: chip[i] = (0.5 * D_Ca * T[i] + D_C0) * T[i] + CR * T[i]
     if algMode == 1:
       chipAll_idx = scipy.ndarray((n_samples), dtype=TYPE)
-      chipAll_idx.fill(D_Ca * 0.5)
+      chipAll_idx.fill(D_C0 * 0.5)
       chipAll_idx *= userTimeAll_s
-      chipAll_idx += D_C0
+      chipAll_idx += D_C1
       chipAll_idx *= userTimeAll_s
       chipAll_idx += carrierSignal.CODE_CHIP_RATE_HZ * userTimeAll_s
+      chipAll_idx += D_C2
     elif algMode == 2:
-      K3 = 0.5 * D_Ca
-      K4 = D_C0 + carrierSignal.CODE_CHIP_RATE_HZ
+      K3 = 0.5 * D_C0
+      K4 = D_C1 + carrierSignal.CODE_CHIP_RATE_HZ
       chipAll_idx = scipy.linspace(K3 * userTime0_s + K4,
                                    K3 * userTimeX_s + K4,
                                    n_samples,
                                    dtype=TYPE,
                                    endpoint=False)
       chipAll_idx *= userTimeAll_s
+      chipAll_idx += D_C2
     elif algMode == 3:
-      phi_E = 2 * scipy.constants.pi * D_Ca / if_iface.Chip.SAMPLE_RATE_HZ
+      phi_E = 2 * scipy.constants.pi * D_C0 / if_iface.Chip.SAMPLE_RATE_HZ
       chipAll_idx = scipy.ndarray(n_samples, dtype=TYPE)
       chipAll_idx.fill(phi_E + self.chipShift)
       numpy.cumsum(chipAll_idx, out=chipAll_idx)
