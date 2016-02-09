@@ -6,6 +6,7 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+import numpy
 """
 The :mod:`peregrine.iqgen.iqgen_main` module contains classes and functions
 related to parameter processing.
@@ -100,6 +101,7 @@ def prepareArgsParser():
       namespace.doppler_speed = 0.
       namespace.doppler_distance = 0.
       namespace.message_type = "zero"
+      namespace.message_file = None
       namespace.amplitude = 1.
       namespace.doppler_amplitude = 0.
       namespace.doppler_period = 1.
@@ -153,21 +155,21 @@ def prepareArgsParser():
       elif namespace.doppler_type == "zero2":
         doppler = Stationary2(namespace.doppler_distance)
       elif namespace.doppler_type == "const":
-        doppler = constDoppler(namespace.doppler_distance, 
-                               frequency_hz, 
+        doppler = constDoppler(namespace.doppler_distance,
+                               frequency_hz,
                                namespace.doppler_value)
         sv.doppler = doppler
       elif namespace.doppler_type == "linear":
-        doppler = linearDoppler(namespace.doppler_distance, 
-                                namespace.doppler_value, 
-                                frequency_hz, 
+        doppler = linearDoppler(namespace.doppler_distance,
+                                namespace.doppler_value,
+                                frequency_hz,
                                 namespace.doppler_speed)
         sv.doppler = doppler
       elif namespace.doppler_type == "sine":
         doppler = sineDoppler(namespace.doppler_distance,
                               namespace.doppler_value,
                               frequency_hz,
-                              namespace.doppler_amplitude, 
+                              namespace.doppler_amplitude,
                               namespace.doppler_period)
         sv.doppler = doppler
       else:
@@ -189,6 +191,23 @@ def prepareArgsParser():
       sv.setL1CAMessage(message)
       sv.setL2CMessage(message)
 
+  class UpdateMessageFile(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateMessageFile, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      data = numpy.fromfile(namespace.message_file, dtype=numpy.uint8)
+      namespace.message_file.close()
+      data = numpy.unpackbits(data)
+      data = numpy.asarray(data, dtype=numpy.int8)
+      data <<= 1
+      data -= 1
+      numpy.negative(data, out=data)
+      message = BlockMessage(data)
+
+      sv.setL1CAMessage(message)
+      sv.setL2CMessage(message)
+
   class UpdateAmplitude(UpdateSv):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateAmplitude, self).__init__(option_strings, dest, **kwargs)
@@ -197,78 +216,82 @@ def prepareArgsParser():
       sv.setAmplitude(namespace.amplitude)
 
   parser = argparse.ArgumentParser(description="Signal generator", usage='%(prog)s [options]')
-  parser.add_argument('--gps-sv', 
-                      default=[], 
+  parser.add_argument('--gps-sv',
+                      default=[],
                       help='Enable GPS satellite',
                       action=AddSv)
   parser.add_argument('--bands',
-                      default="l1ca", 
-                      choices=["l1ca", "l2c", "l1ca+l2c"], 
-                      help="Signal bands to enable", 
+                      default="l1ca",
+                      choices=["l1ca", "l2c", "l1ca+l2c"],
+                      help="Signal bands to enable",
                       action=UpdateBands)
-  parser.add_argument('--doppler-type', 
-                      default="zero", 
-                      choices=["zero", "zero2", "const", "linear", "size"], 
-                      help="Configure doppler type", 
+  parser.add_argument('--doppler-type',
+                      default="zero",
+                      choices=["zero", "zero2", "const", "linear", "size"],
+                      help="Configure doppler type",
                       action=UpdateDopplerType)
-  parser.add_argument('--doppler-value', 
-                      type=float, 
-                      default=-10., 
-                      help="Doppler shift in hertz (initial)", 
-                      action=UpdateDopplerType)
-  parser.add_argument('--doppler-speed', 
-                      type=float, 
-                      default=-10., 
-                      help="Doppler shift change in hertz/second", 
-                      action=UpdateDopplerType)
-  parser.add_argument('--doppler-distance', 
-                      type=float, 
-                      help="Distance in meters (initial)", 
-                      action=UpdateDopplerType)
-  parser.add_argument('--doppler-amplitude', 
-                      type=float, 
-                      default=-10.,
-                      help="Doppler change amplitude (hertz)", 
-                      action=UpdateDopplerType)
-  parser.add_argument('--doppler-period', 
+  parser.add_argument('--doppler-value',
                       type=float,
-                      help="Doppler change period (seconds)", 
+                      default=-10.,
+                      help="Doppler shift in hertz (initial)",
                       action=UpdateDopplerType)
-  parser.add_argument('--message-type', default="zero", 
-                      choices=["zero", "one", "zero+one"], 
-                      help="Message type", 
+  parser.add_argument('--doppler-speed',
+                      type=float,
+                      default=-10.,
+                      help="Doppler shift change in hertz/second",
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-distance',
+                      type=float,
+                      help="Distance in meters (initial)",
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-amplitude',
+                      type=float,
+                      default=-10.,
+                      help="Doppler change amplitude (hertz)",
+                      action=UpdateDopplerType)
+  parser.add_argument('--doppler-period',
+                      type=float,
+                      help="Doppler change period (seconds)",
+                      action=UpdateDopplerType)
+  parser.add_argument('--message-type', default="zero",
+                      choices=["zero", "one", "zero+one"],
+                      help="Message type",
                       action=UpdateMessageType)
-  parser.add_argument('--amplitude', 
-                      type=float, 
-                      default=1., 
+  parser.add_argument('--message-file',
+                      type=argparse.FileType('rb'),
+                      help="Source file for message contents.",
+                      action=UpdateMessageFile)
+  parser.add_argument('--amplitude',
+                      type=float,
+                      default=1.,
                       help="Amplitude")
-  parser.add_argument('--symbol_delay', 
-                      type=int, 
+  parser.add_argument('--symbol_delay',
+                      type=int,
                       help="Initial symbol index")
-  parser.add_argument('--chip_delay', 
-                      type=int, 
+  parser.add_argument('--chip_delay',
+                      type=int,
                       help="Initial chip index")
-  parser.add_argument('--lpf', 
-                      default=False, 
-                      help="Enable low pass filter", 
+  parser.add_argument('--lpf',
+                      default=False,
+                      help="Enable low pass filter",
                       action='store_true')
-  parser.add_argument('--snr', 
-                      type=float, 
+  parser.add_argument('--snr',
+                      type=float,
                       help="SNR for noise generation")
-  parser.add_argument('--debug', 
-                      default=False, 
-                      help="Enable debug output", 
+  parser.add_argument('--debug',
+                      default=False,
+                      help="Enable debug output",
                       action='store_true')
-  parser.add_argument('--interval', 
-                      type=float, 
-                      default=3., 
+  parser.add_argument('--interval',
+                      type=float,
+                      default=3.,
                       help="Interval duration in seconds")
-  parser.add_argument('--encoder', 
-                      default="1bit", 
-                      choices=["1bit", "2bits"], 
+  parser.add_argument('--encoder',
+                      default="1bit",
+                      choices=["1bit", "2bits"],
                       help="Output data format")
-  parser.add_argument('--output', 
-                      type=argparse.FileType('wb'), 
+  parser.add_argument('--output',
+                      type=argparse.FileType('wb'),
                       help="Output file name")
 
   return parser

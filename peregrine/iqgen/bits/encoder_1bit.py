@@ -7,8 +7,6 @@
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
-import numpy
-
 """
 The :mod:`peregrine.iqgen.encoder_1bit` module contains classes and functions
 related to generating single bit signal output.
