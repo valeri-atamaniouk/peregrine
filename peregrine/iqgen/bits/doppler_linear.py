@@ -15,10 +15,11 @@ related to generation of signals with linearily changing doppler.
 
 """
 
-import math
+import numpy
 import scipy.constants
+from peregrine.iqgen.bits.doppler_base import DopplerBase
 
-class Doppler(object):
+class Doppler(DopplerBase):
 
   NAME = "LinearDoppler"
 
@@ -45,7 +46,7 @@ class Doppler(object):
     self.speed0_mps = speed0_mps
     self.acceleration_mps2 = acceleration_mps2
     self.tau0_s = self.distance0_m / scipy.constants.c
-    self.phaseShift = 0. # For debugging
+    self.phaseShift = 0.  # For debugging
     self.chipShift = 0.
 
   def computeDistanceM(self, svTime_s):
@@ -109,7 +110,7 @@ class Doppler(object):
     _c = self.distance0_m - userTime_s * scipy.constants.c
 
     _d = _b * _b - 2 * _ax2 * _c
-    _sd = math.sqrt(_d)
+    _sd = numpy.sqrt(_d)
     _r0 = (-_b + _sd) / _ax2
     _r1 = (-_b - _sd) / _ax2
     if (_r0 < 0):
@@ -128,7 +129,8 @@ class Doppler(object):
                    carrierSignal,
                    ifFrequency_hz,
                    message,
-                   code):
+                   code,
+                   outputConfig):
     '''
     Computes signal samples for the doppler object.
 
@@ -148,6 +150,8 @@ class Doppler(object):
       Message object for providing access to symbols
     code : object
       PRN code object for providing access to chips
+    outputConfig : object
+      Output configuration object, containing sampling rate etc.
 
     Returns
     -------
@@ -161,18 +165,16 @@ class Doppler(object):
       Code combined with data
     '''
 
-    TYPE=numpy.float128
-
-    deltaUserTime_s = float(n_samples) / if_iface.Chip.SAMPLE_RATE_HZ
+    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, if_iface.Chip)
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
                                    n_samples,
-                                   dtype=TYPE,
+                                   dtype=self.dtype,
                                    endpoint=False)
 
     # Computing doppler coefficients
-    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c 
+    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = freqRatio * self.acceleration_mps2
     D_1 = freqRatio * self.speed0_mps
     D_2 = freqRatio * self.distance0_m
@@ -181,7 +183,7 @@ class Doppler(object):
 
     algMode = 1
     if algMode == 1:
-      phaseAll = scipy.ndarray(n_samples, dtype=TYPE)
+      phaseAll = scipy.ndarray(n_samples, dtype=self.dtype)
       phaseAll.fill(D_0 * 0.5)
       phaseAll *= userTimeAll_s
       phaseAll += D_1
@@ -191,18 +193,18 @@ class Doppler(object):
     elif algMode == 2:
       K1 = scipy.constants.pi * D_0
       K2 = 2 * scipy.constants.pi * (D_1 + ifFrequency_hz)
-      phasePoint0 = K1 * userTime0_s + K2 
+      phasePoint0 = K1 * userTime0_s + K2
       phasePointX = K1 * userTimeX_s + K2
       phaseAll = scipy.linspace(phasePoint0,
                                 phasePointX,
                                 n_samples,
-                                dtype=TYPE,
+                                dtype=self.dtype,
                                 endpoint=False)
       phaseAll *= userTimeAll_s
       phaseAll += D_2
     elif algMode == 3:
       phi_E = 2 * scipy.constants.pi * D_0 / if_iface.Chip.SAMPLE_RATE_HZ
-      phaseAll = scipy.ndarray(n_samples, dtype=TYPE)
+      phaseAll = scipy.ndarray(n_samples, dtype=self.dtype)
       phaseAll.fill(phi_E + self.phaseShift)
       numpy.cumsum(phaseAll, out=phaseAll)
       # numpy.cumsum(phaseAll, out=phaseAll)
@@ -210,20 +212,20 @@ class Doppler(object):
       phaseAll += userTimeAll_s * 2 * scipy.constants.pi * ifFrequency_hz
 
     # Convert phase to signal value and multiply by amplitude
-    signal = scipy.sin(phaseAll)
+    signal = scipy.cos(phaseAll)
     signal *= amplitude
 
     # PRN and data index computation
     # Computing doppler coefficients
     # Doppler for chips: chip[i] = 0.5 * D_C0 * T[i]^2 + (D_C1 + F_chip) * T[i] + D_C2
-    
+
     chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / carrierSignal.CENTER_FREQUENCY_HZ
     D_C0 = D_0 * chipFreqRatio
     D_C1 = D_1 * chipFreqRatio
     D_C2 = D_2 * chipFreqRatio
 
     if algMode == 1:
-      chipAll_idx = scipy.ndarray((n_samples), dtype=TYPE)
+      chipAll_idx = scipy.ndarray((n_samples), dtype=self.dtype)
       chipAll_idx.fill(D_C0 * 0.5)
       chipAll_idx *= userTimeAll_s
       chipAll_idx += D_C1
@@ -236,32 +238,21 @@ class Doppler(object):
       chipAll_idx = scipy.linspace(K3 * userTime0_s + K4,
                                    K3 * userTimeX_s + K4,
                                    n_samples,
-                                   dtype=TYPE,
+                                   dtype=self.dtype,
                                    endpoint=False)
       chipAll_idx *= userTimeAll_s
       chipAll_idx += D_C2
     elif algMode == 3:
       phi_E = 2 * scipy.constants.pi * D_C0 / if_iface.Chip.SAMPLE_RATE_HZ
-      chipAll_idx = scipy.ndarray(n_samples, dtype=TYPE)
+      chipAll_idx = scipy.ndarray(n_samples, dtype=self.dtype)
       chipAll_idx.fill(phi_E + self.chipShift)
       numpy.cumsum(chipAll_idx, out=chipAll_idx)
       # numpy.cumsum(chipAll_idx, out=chipAll_idx)
       self.chipShift = chipAll_idx[n_samples - 1]
       chipAll_idx += userTimeAll_s * 2 * scipy.constants.pi * carrierSignal.CODE_CHIP_RATE_HZ
-      print "phase shift ", chipAll_idx[n_samples - 1] - chipAll_idx[0], (chipAll_idx[n_samples - 1] - chipAll_idx[0]) / n_samples 
+      print "phase shift ", chipAll_idx[n_samples - 1] - chipAll_idx[0], (chipAll_idx[n_samples - 1] - chipAll_idx[0]) / n_samples
 
-    # print chipAll_idx
-
-    def dataChip(idx):
-      chipIdx = long(idx)
-      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
-      x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
-      return x
-
-    vdata = scipy.vectorize(dataChip)
-    chips = vdata(chipAll_idx)
-    # print "Chips 0..last=", chipAll_idx[0], chipAll_idx[n_samples-1]
-
+    chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
     return (signal, userTimeX_s, chipAll_idx, chips)
 

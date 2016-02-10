@@ -6,18 +6,18 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-from peregrine.iqgen import if_iface
-from scipy.stats.vonmises_cython import numpy
-
 """
 The :mod:`peregrine.iqgen.doppler_sine` module contains classes and functions
 related to generation of signals with circular changing doppler.
 
 """
 
-import scipy.constants
+from peregrine.iqgen.bits.doppler_base import DopplerBase
 
-class Doppler(object):
+import scipy.constants
+import numpy
+
+class Doppler(DopplerBase):
 
   NAME = "SineDoppler"
 
@@ -44,10 +44,8 @@ class Doppler(object):
     self.distance0_m = distance0_m
     self.speed0_mps = speed0_mps
     self.amplutude_mps = amplutude_mps
-    self.period_s = self.period_s
+    self.period_s = period_s
     self.tau0_s = self.distance0_m / scipy.constants.c
-    self.phaseShift = 0. # For debugging
-    self.chipShift = 0.
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -64,7 +62,8 @@ class Doppler(object):
     float
       Distance to satellite in meters.
     '''
-    return self.distance0_m + self.speed0_mps * svTime_s + 0.5 * self.acceleration_mps2 * svTime_s * svTime_s
+    return self.distance0_m + self.speed0_mps * svTime_s + \
+       self.amplutude_mps * (1 - numpy.cos(2 * scipy.constants.pi * svTime_s / self.period_s))
 
   def computeSpeedMps(self, svTime_s):
     '''
@@ -81,7 +80,7 @@ class Doppler(object):
     float
       Speed of satellite in meters per second.
     '''
-    return self.speed0_mps + self.acceleration_mps2 * svTime_s
+    return self.speed0_mps + self.amplutude_mps * numpy.sin(2 * scipy.constants.pi * svTime_s / self.period_s)
 
   def computeSvTimeS(self, userTime_s):
     '''
@@ -113,7 +112,8 @@ class Doppler(object):
                    carrierSignal,
                    ifFrequency_hz,
                    message,
-                   code):
+                   code,
+                   outputConfig):
     '''
     Computes signal samples for the doppler object.
 
@@ -133,6 +133,8 @@ class Doppler(object):
       Message object for providing access to symbols
     code : object
       PRN code object for providing access to chips
+    outputConfig : object
+      Output configuration object, containing sampling rate etc.
 
     Returns
     -------
@@ -146,27 +148,25 @@ class Doppler(object):
       Code combined with data
     '''
 
-    TYPE=numpy.float128
-
-    deltaUserTime_s = float(n_samples) / if_iface.Chip.SAMPLE_RATE_HZ
+    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig)
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
                                    n_samples,
-                                   dtype=TYPE,
+                                   dtype=self.dtype,
                                    endpoint=False)
 
     # Computing doppler coefficients
     # D(t) = D_0 + A * sin(2 * pi / P * t)
     # I(D(t)dt)=D_0 * t + A * (1 - cos(2 * pi / P * t)) * P / (2 * pi)
     # I= (D_0 + F_i) * t + D_1 * (1 - cos( D_2 * t)) + D_3
-    
-    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c 
-    D_0 = self.speed0_mps * freqRatio 
-    D_1 = 2. * scipy.constants.pi / self.period_s * freqRatio
-    D_2 = freqRatio * self.amplutude_mps * self.period_s / (2. * scipy.constants.pi)
+
+    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
+    D_0 = self.speed0_mps * freqRatio
+    D_1 = self.amplutude_mps * freqRatio
+    D_2 = self.period_s * (1 - freqRatio) * 2. * scipy.constants.pi
     D_3 = self.distance0_m * freqRatio
-    
+
     algMode = 1
     if algMode == 1:
       phaseAll = scipy.copy(userTimeAll_s)
@@ -184,12 +184,12 @@ class Doppler(object):
       pass
 
     # Convert phase to signal value and multiply by amplitude
-    signal = scipy.sin(phaseAll)
+    signal = scipy.cos(phaseAll)
     signal *= amplitude
 
     # PRN and data index computation
     # Computing doppler coefficients
-    
+
     chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / carrierSignal.CENTER_FREQUENCY_HZ
     D_C0 = D_0 * chipFreqRatio
     D_C1 = D_1 * chipFreqRatio
@@ -209,18 +209,7 @@ class Doppler(object):
     elif algMode == 3:
       pass
 
-    # print chipAll_idx
-
-    def dataChip(idx):
-      chipIdx = long(idx)
-      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
-      x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
-      return x
-
-    vdata = scipy.vectorize(dataChip)
-    chips = vdata(chipAll_idx)
-    # print "Chips 0..last=", chipAll_idx[0], chipAll_idx[n_samples-1]
-
+    chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
     return (signal, userTimeX_s, chipAll_idx, chips)
 

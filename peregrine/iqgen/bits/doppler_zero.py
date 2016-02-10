@@ -13,11 +13,11 @@ related to generation of signals with zero doppler using `linspace` approach.
 
 """
 
+from peregrine.iqgen.bits.doppler_base import DopplerBase
 
 import scipy.constants
-import peregrine.iqgen.if_iface
 
-class Doppler(object):
+class Doppler(DopplerBase):
 
   NAME = "ZeroDoppler"
 
@@ -28,7 +28,6 @@ class Doppler(object):
     super(Doppler, self).__init__()
     self.distance0_m = distance0_m
     self.phaseShift = 0.
-    self.n_samples = 0l
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -91,7 +90,8 @@ class Doppler(object):
                    carrierSignal,
                    ifFrequency_hz,
                    message,
-                   code):
+                   code,
+                   outputConfig):
     '''
     Computes signal samples for the doppler object.
 
@@ -122,41 +122,39 @@ class Doppler(object):
       Code chip phases for the samples
     chips : numpy.ndarray(n_samples, dtype=int)
       Code combined with data
+    outputConfig : object
+      Output configuration object, containing sampling rate etc.
     '''
 
-    deltaUserTime_s = float(n_samples) / peregrine.iqgen.if_iface.Chip.SAMPLE_RATE_HZ
+    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig)
     userTimeX_s = userTime0_s + deltaUserTime_s
-    self.n_samples += n_samples
 
-    tau0_s = abs(self.distance0_m) / scipy.constants.c  # Initial time difference
+    tau0_s = self.distance0_m / scipy.constants.c  # Initial time difference
 
     # SV Time Vector
     svTime0_s = userTime0_s - tau0_s
     svTimeX_s = userTimeX_s - tau0_s
-    # svTimeAll_s = scipy.linspace(svTime0_s, svTimeX_s, n_samples)
 
-    # valueType = numpy.float32
-
-    phase0_s = scipy.constants.pi * 2. * ifFrequency_hz * userTime0_s
-    phaseX_s = scipy.constants.pi * 2. * ifFrequency_hz * userTimeX_s
-    signal = scipy.linspace(phase0_s, phaseX_s, n_samples, endpoint=False)
+    phase0_s = scipy.constants.pi * 2. * ifFrequency_hz * svTime0_s
+    phaseX_s = scipy.constants.pi * 2. * ifFrequency_hz * svTimeX_s
+    signal = scipy.linspace(phase0_s,
+                            phaseX_s,
+                            n_samples,
+                            dtype=self.dtype,
+                            endpoint=False)
 
     # carrierAll = amplitude * scipy.sin(signal)
-    scipy.sin(signal, signal)
-    scipy.multiply(signal, amplitude, signal)
+    scipy.cos(signal, signal)
+    signal *= amplitude
 
     chip0_idx = svTime0_s * carrierSignal.CODE_CHIP_RATE_HZ
     chipX_idx = svTimeX_s * carrierSignal.CODE_CHIP_RATE_HZ
-    chipAll_idx = scipy.linspace(chip0_idx, chipX_idx, n_samples, endpoint=False)
+    chipAll_idx = scipy.linspace(chip0_idx,
+                                 chipX_idx,
+                                 n_samples,
+                                 dtype=self.dtype,
+                                 endpoint=False)
 
-    def dataChip(idx):
-      chipIdx = long(idx)
-      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
-      x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
-      return x
-
-    vdata = scipy.vectorize(dataChip)
-    chips = vdata(chipAll_idx)
-
+    chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
     return (signal, userTimeX_s, chipAll_idx, chips)

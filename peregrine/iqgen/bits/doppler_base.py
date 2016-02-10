@@ -6,31 +6,33 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-
-"""
-The :mod:`peregrine.iqgen.doppler_zero2` module contains classes and functions
-related to generation of signals with zero doppler using sample step approach.
-
-"""
-
-
-import scipy.constants
-import peregrine.iqgen.if_iface
 import numpy
 
-class Doppler(object):
+"""
+The :mod:`peregrine.iqgen.doppler_base` module contains classes and functions
+related to base implementation of doppler class.
 
-  NAME = "Zero2Doppler"
+"""
+
+import scipy.constants
+
+class DopplerBase(object):
+
+  NAME = "Doppler"
 
   '''
-  Doppler control for non-moving signal source.
-
-  This object uses time and phase delta increments instead of numpy.linspace
-  sampling.
+  Doppler control for a signal source that moves with a constant speed.
   '''
-  def __init__(self, distance0m):
-    super(Doppler, self).__init__()
-    self.distance0_m = distance0m
+  def __init__(self, dtype=numpy.float128):
+    '''
+    Constructs doppler base object for movement control.
+
+    Parameters
+    dtype : object, optional
+      Numpy type for sample computations.
+    '''
+    super(DopplerBase, self).__init__()
+    self.dtype = dtype
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -47,7 +49,7 @@ class Doppler(object):
     float
       Distance to satellite in meters.
     '''
-    return self.distance0_m
+    raise NotImplementedError()
 
   def computeSpeedMps(self, svTime_s):
     '''
@@ -64,7 +66,7 @@ class Doppler(object):
     float
       Speed of satellite in meters per second.
     '''
-    return 0.
+    raise NotImplementedError()
 
   def computeSvTimeS(self, userTime_s):
     '''
@@ -83,7 +85,7 @@ class Doppler(object):
     float
       Satellite vehicle's time at which signal has been generated.
     '''
-    return  userTime_s - abs(self.distance0_m) / scipy.constants.c
+    raise NotImplementedError()
 
   def computeBatch(self,
                    userTime0_s,
@@ -124,26 +126,38 @@ class Doppler(object):
     chips : numpy.ndarray(n_samples, dtype=int)
       Code combined with data
     '''
+    raise NotImplementedError()
 
-    # Phase step for 1 sample
-    phaseStep = 2. * scipy.constants.pi * ifFrequency_hz / peregrine.iqgen.if_iface.Chip.SAMPLE_RATE_HZ
+  @staticmethod
+  def computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig):
+    deltaUserTime_s = float(n_samples) / outputConfig.SAMPLE_RATE_HZ
+    return deltaUserTime_s
 
-    signal = scipy.ndarray(n_samples, dtype=numpy.float64)
-    signal.fill(phaseStep)
-    phaseOffset = 2. * scipy.constants.pi * ifFrequency_hz * userTime0_s
-    signal[0] = phaseOffset
-    numpy.cumsum(signal, dtype=numpy.float64, out=signal)
+  @staticmethod
+  def computeDopplerHz(frequency_hz, speed_mps):
+    doppler_hz = -frequency_hz / scipy.constants.c * speed_mps
+    return doppler_hz
 
-    numpy.sin(signal, dtype=numpy.float64, out=signal)
-    numpy.multiply(signal, amplitude, dtype=numpy.float64, out=signal)
+  def computeDataNChipVector(self, chipAll_idx, carrierSignal, message, code):
+    '''
+    Helper for computing vector that combines data and code chips.
 
-    chip1_s = carrierSignal.CODE_CHIP_RATE_HZ / peregrine.iqgen.if_iface.Chip.SAMPLE_RATE_HZ
-    chipAll_idx = numpy.ndarray(n_samples, dtype=numpy.float64);
-    chipAll_idx.fill(chip1_s)
-    chipOffset = carrierSignal.CODE_CHIP_RATE_HZ * userTime0_s
-    chipAll_idx[0] = chipOffset
-    numpy.cumsum(chipAll_idx, dtype=numpy.float64, out=chipAll_idx)
-    self.chipOffset = chipAll_idx[len(chipAll_idx) - 1]
+    Parameters
+    ----------
+    chipAll_idx : ndarray
+      vector of chip phases
+    carrierSignal : object
+      Signal description object
+    messge : object
+      Data bits source
+    code : objects
+      Code chips source
+
+    Returns
+    -------
+    ndarray
+      Array of code chips multiplied with data bits
+    '''
 
     def dataChip(idx):
       chipIdx = long(idx)
@@ -152,8 +166,5 @@ class Doppler(object):
       return x
 
     vdata = scipy.vectorize(dataChip)
-    chips = vdata(chipAll_idx)
+    return vdata(chipAll_idx)
 
-    numpy.multiply(signal, chips, out=signal)
-
-    return (signal, userTime0_s, chipAll_idx, chips)

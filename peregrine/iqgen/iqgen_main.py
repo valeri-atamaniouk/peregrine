@@ -18,7 +18,6 @@ from peregrine.iqgen.satellite import GPS_SV
 from peregrine.iqgen.bits.doppler_const import constDoppler
 from peregrine.iqgen.bits.doppler_linear import linearDoppler
 from peregrine.iqgen.bits.doppler_zero import Doppler as Stationary
-from peregrine.iqgen.bits.doppler_zero2 import Doppler as Stationary2
 from peregrine.iqgen.bits.doppler_sine import sineDoppler
 
 # from signals import GPS, GPS_L2C_Signal, GPS_L1CA_Signal
@@ -152,8 +151,6 @@ def prepareArgsParser():
 
       if namespace.doppler_type == "zero":
         doppler = Stationary(namespace.doppler_distance)
-      elif namespace.doppler_type == "zero2":
-        doppler = Stationary2(namespace.doppler_distance)
       elif namespace.doppler_type == "const":
         doppler = constDoppler(namespace.doppler_distance,
                                frequency_hz,
@@ -227,7 +224,7 @@ def prepareArgsParser():
                       action=UpdateBands)
   parser.add_argument('--doppler-type',
                       default="zero",
-                      choices=["zero", "zero2", "const", "linear", "size"],
+                      choices=["zero", "const", "linear", "sine"],
                       help="Configure doppler type",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-value',

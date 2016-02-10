@@ -137,7 +137,7 @@ def generateSamples(outputFile,
       sv = sv_list[svIdx]
 
       # Add signal from satellite to signal accumulator
-      t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs)
+      t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs, Chip)
 
       # Debugging output
       if debugLog:

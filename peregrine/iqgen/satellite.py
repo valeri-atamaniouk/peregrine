@@ -139,7 +139,7 @@ class GPS_SV(SV):
     '''
     self.l2cMessage = message
 
-  def getBatchSignals(self, time0_s, n_samples, samples):
+  def getBatchSignals(self, time0_s, n_samples, samples, outputConfig):
     '''
     Generates signal samples.
 
@@ -151,6 +151,8 @@ class GPS_SV(SV):
       Number of samples to generate.
     samples : numpy.ndarray((4, n_samples))
       Array to which samples are added.
+    outputConfig : object
+      Output configuration object.
 
     Returns
     -------
@@ -165,7 +167,8 @@ class GPS_SV(SV):
                                          signals.GPS.L1CA,
                                          Chip.GPS.L1.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l1caMessage,
-                                         self.l1caCode)
+                                         self.l1caCode,
+                                         outputConfig)
       numpy.add(samples[Chip.GPS.L1.INDEX], values[0], out=samples[Chip.GPS.L1.INDEX])
     if (self.l2cEnabled):
       values = self.doppler.computeBatch(time0_s,
@@ -174,7 +177,8 @@ class GPS_SV(SV):
                                          signals.GPS.L2C,
                                          Chip.GPS.L2.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l2cMessage,
-                                         self.l2cCode)
+                                         self.l2cCode,
+                                         outputConfig)
       numpy.add(samples[Chip.GPS.L2.INDEX], values[0], out=samples[Chip.GPS.L2.INDEX])
     return values
 
