@@ -6,8 +6,6 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-from peregrine.iqgen import if_iface
-from scipy.stats.vonmises_cython import numpy
 
 """
 The :mod:`peregrine.iqgen.doppler_linear` module contains classes and functions
@@ -17,6 +15,7 @@ related to generation of signals with linearily changing doppler.
 
 import numpy
 import scipy.constants
+from peregrine.iqgen import if_iface
 from peregrine.iqgen.bits.doppler_base import DopplerBase
 
 class Doppler(DopplerBase):

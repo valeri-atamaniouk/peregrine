@@ -150,10 +150,11 @@ class Doppler(DopplerBase):
     svTimeX_s = userTimeX_s - tauX_s  # End time
 
     # Compute initial and final signal phases and then phase space
-    doppler_hz = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c * self.speed_mps
+    doppler_hz = self.computeDopplerHz(carrierSignal.CENTER_FREQUENCY_HZ,
+                                       self.speed_mps)
     phaseSpeed = scipy.constants.pi * 2. * (ifFrequency_hz + doppler_hz)
-    phase0_s = phaseSpeed * svTime0_s  # svTime0_s
-    phaseX_s = phaseSpeed * svTimeX_s  # svTimeX_s
+    phase0_s = phaseSpeed * svTime0_s  # Phase interval start (inclusive)
+    phaseX_s = phaseSpeed * svTimeX_s  # Phase interval end (exclusive)
     signal = scipy.linspace(phase0_s,
                             phaseX_s,
                             n_samples,

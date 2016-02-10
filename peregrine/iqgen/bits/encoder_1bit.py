@@ -48,6 +48,9 @@ class BandBitEncoder(Encoder):
     '''
     band_samples = sample_array[self.bandIndex]
     n_samples = len(band_samples)
+
+    self.ensureExtraCapacity(n_samples)
+
     self.bits[self.n_bits:self.n_bits + n_samples] = [self.getBit(x) for x in band_samples]
     self.n_bits += n_samples
 

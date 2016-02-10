@@ -148,7 +148,9 @@ class Doppler(DopplerBase):
       Code combined with data
     '''
 
-    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig)
+    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s,
+                                                 n_samples,
+                                                 outputConfig)
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
@@ -159,12 +161,12 @@ class Doppler(DopplerBase):
     # Computing doppler coefficients
     # D(t) = D_0 + A * sin(2 * pi / P * t)
     # I(D(t)dt)=D_0 * t + A * (1 - cos(2 * pi / P * t)) * P / (2 * pi)
-    # I= (D_0 + F_i) * t + D_1 * (1 - cos( D_2 * t)) + D_3
+    # I(t) = (D_0 + F_i) * t + D_1 * (1 - cos(D_2 * t)) + D_3
 
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = self.speed0_mps * freqRatio
     D_1 = self.amplutude_mps * freqRatio
-    D_2 = self.period_s * (1 - freqRatio) * 2. * scipy.constants.pi
+    D_2 = self.period_s * freqRatio * 2. * scipy.constants.pi
     D_3 = self.distance0_m * freqRatio
 
     algMode = 1

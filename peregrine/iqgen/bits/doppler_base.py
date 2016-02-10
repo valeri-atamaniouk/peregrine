@@ -6,7 +6,6 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-import numpy
 
 """
 The :mod:`peregrine.iqgen.doppler_base` module contains classes and functions
@@ -15,10 +14,14 @@ related to base implementation of doppler class.
 """
 
 import scipy.constants
+import numpy
 
 class DopplerBase(object):
 
   NAME = "Doppler"
+
+  # Internal value
+  __startIndex = numpy.iinfo(long).min
 
   '''
   Doppler control for a signal source that moves with a constant speed.
@@ -130,11 +133,43 @@ class DopplerBase(object):
 
   @staticmethod
   def computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig):
+    '''
+    Helper for computing generation interval duration in seconds.
+
+    Parameters
+    ----------
+    userTime0_s : float
+      Generation interval start
+    n_samples : int
+      Number of samples in the generation interval
+    outputConfig : object
+      Output configuration.
+
+    Returns
+    -------
+    float
+      Generation interval duration in seconds
+    '''
     deltaUserTime_s = float(n_samples) / outputConfig.SAMPLE_RATE_HZ
     return deltaUserTime_s
 
   @staticmethod
   def computeDopplerHz(frequency_hz, speed_mps):
+    '''
+    Generic method for doppler shift computation.
+
+    Parameters
+    ----------
+    frequency_hz : float
+      Frequency in hertz for which doppler is computed.
+    speed_mps : float
+      Speed in meters per second for which doppler is computed.
+
+    Returns
+    -------
+    float
+      Doppler shift value in hertz.
+    '''
     doppler_hz = -frequency_hz / scipy.constants.c * speed_mps
     return doppler_hz
 
@@ -159,12 +194,26 @@ class DopplerBase(object):
       Array of code chips multiplied with data bits
     '''
 
-    def dataChip(idx):
-      chipIdx = long(idx)
-      dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
-      x = message.getBit(dataIdx) * code.getCodeBit(chipIdx)
-      return x
+    chipAll_long = chipAll_idx.astype(numpy.long)
+    n_chips = len(chipAll_idx)
+    result = numpy.ndarray(n_chips, dtype=numpy.int8)
+    prevChipIdx = DopplerBase.__startIndex
+    prevChip = None
+    prevDataIdx = DopplerBase.__startIndex
+    prevData = None
+    prevMult = None
 
-    vdata = scipy.vectorize(dataChip)
-    return vdata(chipAll_idx)
+    for idx in range(n_chips):
+      chipIdx = chipAll_long[idx]
+      if chipIdx != prevChipIdx:
+        prevChipIdx = chipIdx
+        prevChip = code.getCodeBit(chipIdx)
+        dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
+        if dataIdx != prevDataIdx:
+          prevDataIdx = dataIdx
+          prevData = message.getBit(dataIdx)
+        prevMult = prevChip * prevData
+      result[idx] = prevMult
+
+    return result
 

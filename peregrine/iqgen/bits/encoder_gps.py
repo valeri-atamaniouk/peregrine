@@ -68,6 +68,9 @@ class GPSL1L2BitEncoder(Encoder):
     band1_samples = sample_array[GPS_L1_INDEX]
     band2_samples = sample_array[GPS_L2_INDEX]
     n_samples = len(band1_samples)
+
+    self.ensureExtraCapacity(n_samples * 2)
+
     def combined():
       try:
         it1 = iter(band1_samples)
