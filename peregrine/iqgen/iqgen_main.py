@@ -39,6 +39,9 @@ from peregrine.iqgen.bits.prn_gps_l2c import PrnCode as GPS_L2C_Code
 from peregrine.iqgen.bits.encoder_gps import GPSL1BitEncoder
 from peregrine.iqgen.bits.encoder_gps import GPSL2BitEncoder
 from peregrine.iqgen.bits.encoder_gps import GPSL1L2BitEncoder
+from peregrine.iqgen.bits.encoder_gps import GPSL1TwoBitsEncoder
+from peregrine.iqgen.bits.encoder_gps import GPSL2TwoBitsEncoder
+from peregrine.iqgen.bits.encoder_gps import GPSL1L2TwoBitsEncoder
 
 from peregrine.iqgen.generate import generateSamples
 
@@ -85,15 +88,10 @@ def prepareArgsParser():
       super(AddSv, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-      print '%r %r %r' % (namespace, values, option_string)
-      print "Found GPS-SV"
       sv = GPS_SV(int(values))
-      print "Namespace =", namespace
-      sv_list = getattr(namespace, "gps_sv")
-      if sv_list is None:
-        sv_list = []
-        setattr(namespace, "gps_sv", sv_list)
-      sv_list.append(sv)
+      if namespace.gps_sv is None:
+        namespace.gps_sv = []
+      namespace.gps_sv.append(sv)
       # Reset all configuration parameters
       namespace.doppler_type = "zero"
       namespace.doppler_value = 0.
@@ -320,6 +318,13 @@ def main():
       encoder = GPSL2BitEncoder()
     else:
       encoder = GPSL1BitEncoder()
+  elif args.encoder == "2bits":
+    if enabledGPSL1 and enabledGPSL2:
+      encoder = GPSL1L2TwoBitsEncoder()
+    elif enabledGPSL2:
+      encoder = GPSL2TwoBitsEncoder()
+    else:
+      encoder = GPSL1TwoBitsEncoder()
   else:
     raise ValueError("Encoder type is not supported")
 

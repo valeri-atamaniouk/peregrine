@@ -13,11 +13,7 @@ related to generating single bit signal output.
 
 """
 
-import peregrine.iqgen.if_iface
 from peregrine.iqgen.bits.encoder_base import Encoder
-
-GPS_L1_INDEX = peregrine.iqgen.if_iface.Chip.GPS.L1.INDEX
-GPS_L2_INDEX = peregrine.iqgen.if_iface.Chip.GPS.L2.INDEX
 
 class BandBitEncoder(Encoder):
   '''
