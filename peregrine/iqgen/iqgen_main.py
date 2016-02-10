@@ -27,6 +27,7 @@ import scipy.constants
 from peregrine.iqgen.if_iface import LowRateConfig
 from peregrine.iqgen.if_iface import NormalRateConfig
 from peregrine.iqgen.if_iface import HighRateConfig
+from peregrine.iqgen.if_iface import AdelRateConfig
 
 # Message data
 from peregrine.iqgen.bits.message_const import Message as ConstMessage
@@ -294,7 +295,7 @@ def prepareArgsParser():
                       help="Output file name")
   parser.add_argument('--profile',
                       default="low_rate",
-                      choices=["low_rate", "normal_rate", "high_rate"],
+                      choices=["low_rate", "normal_rate", "high_rate", "adel_rate"],
                       help="Output profile configuration")
 
   return parser
@@ -315,6 +316,8 @@ def main():
     outputConfig = NormalRateConfig
   elif args.profile == "high_rate":
     outputConfig = HighRateConfig
+  elif args.profile == "adel_rate":
+    outputConfig = AdelRateConfig
   else:
     raise ValueError()
 

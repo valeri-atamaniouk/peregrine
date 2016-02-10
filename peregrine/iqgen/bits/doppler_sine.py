@@ -47,6 +47,32 @@ class Doppler(DopplerBase):
     self.period_s = period_s
     self.tau0_s = self.distance0_m / scipy.constants.c
 
+  def __str__(self):
+    '''
+    Constructs literal presentation of object.
+
+    Returns
+    -------
+    string
+      Literal presentation of object
+    '''
+    return "SineDoppler(distance0_m={}, speed0_mps={}, amplitude_mps={}, period_s={})".\
+      format(self.distance0_m, self.speed0_mps, self.amplutude_mps, self.period_s)
+
+  def __repr__(self):
+    '''
+    Constructs python expression presentation of object.
+
+    Returns
+    -------
+    string
+      Python expression presentation of object
+    '''
+    return "Doppler({}, {}, {}, {})".format(self.distance0_m,
+                                            self.speed0_mps,
+                                            self.amplutude_mps,
+                                            self.period_s)
+
   def computeDistanceM(self, svTime_s):
     '''
     Computes distance to satellite in meters.

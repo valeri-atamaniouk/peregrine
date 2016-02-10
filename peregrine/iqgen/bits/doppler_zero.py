@@ -29,6 +29,28 @@ class Doppler(DopplerBase):
     self.distance0_m = distance0_m
     self.phaseShift = 0.
 
+  def __str__(self):
+    '''
+    Constructs literal presentation of object.
+
+    Returns
+    -------
+    string
+      Literal presentation of object
+    '''
+    return "ZeroDoppler(distance0_m={}".format(self.distance0_m)
+
+  def __repr__(self):
+    '''
+    Constructs python expression presentation of object.
+
+    Returns
+    -------
+    string
+      Python expression presentation of object
+    '''
+    return "Doppler({})".format(self.distance0_m)
+
   def computeDistanceM(self, svTime_s):
     '''
     Computes distance to satellite in meters.

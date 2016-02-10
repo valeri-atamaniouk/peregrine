@@ -17,15 +17,15 @@ import scipy.constants
 import numpy
 
 class DopplerBase(object):
+  '''
+  Doppler control for a signal source that moves with a constant speed.
+  '''
 
   NAME = "Doppler"
 
   # Internal value
   __startIndex = numpy.iinfo(long).min
 
-  '''
-  Doppler control for a signal source that moves with a constant speed.
-  '''
   def __init__(self, dtype=numpy.float128):
     '''
     Constructs doppler base object for movement control.

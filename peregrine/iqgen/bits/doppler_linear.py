@@ -47,6 +47,31 @@ class Doppler(DopplerBase):
     self.phaseShift = 0.  # For debugging
     self.chipShift = 0.
 
+  def __str__(self):
+    '''
+    Constructs literal presentation of object.
+
+    Returns
+    -------
+    string
+      Literal presentation of object
+    '''
+    return "LinearDoppler(distance0_m={}, speed0_mps={}, acceleration0_mps2={})".\
+      format(self.distance0_m, self.speed0_mps, self.acceleration_mps2)
+
+  def __repr__(self):
+    '''
+    Constructs python expression presentation of object.
+
+    Returns
+    -------
+    string
+      Python expression presentation of object
+    '''
+    return "Doppler({}, {}, {})".format(self.distance0_m,
+                                        self.speed0_mps,
+                                        self.acceleration_mps2)
+
   def computeDistanceM(self, svTime_s):
     '''
     Computes distance to satellite in meters.

@@ -152,3 +152,60 @@ class HighRateConfig(object):
 
   GPS = NormalRateConfig.GPS
 
+class AdelRateConfig(object):
+  '''
+  Output control configuration for comparison tests.
+
+  Attributes
+  ----------
+  NAME : string
+    Configuration name
+  SAMPLE_RATE_HZ : float
+    Sample rate in hertz for data generation.
+  SAMPLE_BATCH_SIZE : int
+    Size of the sample batch in samples.
+  GPS : object
+    GPS band information
+  '''
+  NAME = "Low rate configuration for fast tests"
+  SAMPLE_RATE_HZ = 5.5e6
+  SAMPLE_BATCH_SIZE = 100000
+
+  class GPS(object):
+    '''
+    Parameters for GPS bands data generation.
+
+    Attributes
+    ----------
+    L1 : object
+      GPS L1 band information
+    L2 : object
+      GPS L2 band information
+    '''
+    class L1(object):
+      '''
+      Parameters for GPS L1 C/A band data generation.
+
+      Attributes
+      ----------
+      INTERMEDIATE_FREQUENCY_HZ : float
+        Intermediate frequency in hertz for sample construction.
+      INDEX : int
+        Band index
+      '''
+      INTERMEDIATE_FREQUENCY_HZ = 1.4e6  # 2.048e+6  # 2.048 MHz
+      INDEX = 0
+
+    class L2(object):
+      '''
+      Parameters for GPS L2 C band data generation.
+
+      Attributes
+      ----------
+      INTERMEDIATE_FREQUENCY_HZ : float
+        Intermediate frequency in hertz for sample construction.
+      INDEX : int
+        Band index
+      '''
+      INTERMEDIATE_FREQUENCY_HZ = 1.4e6
+      INDEX = 1

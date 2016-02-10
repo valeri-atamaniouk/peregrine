@@ -42,6 +42,28 @@ class Doppler(DopplerBase):
     self.c1 = self.distance0_m / (scipy.constants.c + self.speed_mps)
     self.c2 = self.speed_mps / (scipy.constants.c + self.speed_mps)
 
+  def __str__(self):
+    '''
+    Constructs literal presentation of object.
+
+    Returns
+    -------
+    string
+      Literal presentation of object
+    '''
+    return "DopplerConst(distance0_m={}, speed_mps={})".format(self.distance0_m, self.speed_mps)
+
+  def __repr__(self):
+    '''
+    Constructs python expression presentation of object.
+
+    Returns
+    -------
+    string
+      Python expression presentation of object
+    '''
+    return "Doppler({}, {})".format(self.distance0_m, self.speed_mps)
+
   def computeDistanceM(self, svTime_s):
     '''
     Computes distance to satellite in meters.
