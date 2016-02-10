@@ -27,7 +27,7 @@ class Encoder(object):
 
   EMPTY_RESULT = numpy.ndarray(0, dtype=numpy.uint8)  # Internal empty array
 
-  def __init__(self, bufferSize=2000000):
+  def __init__(self, bufferSize=1000):
     '''
     Constructs encoder.
 
@@ -88,3 +88,18 @@ class Encoder(object):
     self.bits[0:n_left] = self.bits[n_offset:n_offset + n_left]
     self.n_bits = n_left
     return res
+
+  def ensureExtraCapacity(self, extraBits):
+    '''
+    Method verifies that current array has sufficient capacity to hold
+    additional bits.
+
+    Parameters
+    ----------
+    extraBits : int
+      Number of extra bits to reserve space for
+    '''
+    if len(self.bits) < self.n_bits + extraBits:
+      print "Resizing from ", len(self.bits), "to", self.n_bits + extraBits
+      self.bits.resize(self.n_bits + extraBits)
+

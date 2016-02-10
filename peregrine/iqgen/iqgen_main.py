@@ -132,6 +132,8 @@ def prepareArgsParser():
       elif namespace.bands == "l1ca+l2c":
         l1caEnabled = True
         l2cEnabled = True
+      else:
+        raise ValueError()
       sv.setL1CAEnabled(l1caEnabled)
       sv.setL2CEnabled(l2cEnabled)
 
@@ -301,8 +303,8 @@ def main():
     parser.print_help()
     return 0
 
-  # svs = [ GPS_SV(22) ]  # SV list
-
+  # Check which signals are enabled on each of satellite to select proper
+  # output encoder
   enabledGPSL1 = False
   enabledGPSL2 = False
 
@@ -355,23 +357,23 @@ def main():
   print "Computed symbol/chip delay={} seconds".format(time0_s)
 
   startTime_s = time.clock()
-  _n_samples = long(Chip.SAMPLE_RATE_HZ * args.interval)
+  n_samples = long(Chip.SAMPLE_RATE_HZ * args.interval)
 
-  print "Generating {} samples for {} seconds".format(_n_samples, args.interval)
+  print "Generating {} samples for {} seconds".format(n_samples, args.interval)
 
   generateSamples(args.output,
                   args.gps_sv,
                   encoder,
                   time0_s,
-                  _n_samples,
+                  n_samples,
                   SNR=args.snr,
                   lowPass=args.lpf,
                   debugLog=args.debug)
   args.output.close()
 
   duration_s = time.clock() - startTime_s
-  _ratio = _n_samples / duration_s
-  print "Total time = {} sec. Ratio={} samples per second".format(duration_s, _ratio)
+  ratio = n_samples / duration_s
+  print "Total time = {} sec. Ratio={} samples per second".format(duration_s, ratio)
 
 if __name__ == '__main__':
   main()

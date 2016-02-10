@@ -18,7 +18,7 @@ from peregrine.iqgen.bits.encoder_base import Encoder
 
 class BandTwoBitsEncoder(Encoder):
   '''
-  Base class for single bit encoding.
+  Base class for two bits encoding.
   '''
 
   def __init__(self, bandIndex):
@@ -35,6 +35,29 @@ class BandTwoBitsEncoder(Encoder):
 
   @staticmethod
   def convertBand(band_samples):
+    '''
+    Helper method for converting sampled signal band into output bits.
+
+    For the sign, the samples are compared to 0. Positive values yield sign of
+    True.
+
+    The method builds a power histogram from sinal samples. After a histogram
+    is built, the 60% power boundary is located. All samples, whose power is
+    lower, than the boundary, are reported as False.
+
+    Parameters
+    ----------
+    band_samples : ndarray
+      Vector of signal samples
+
+    Returns
+    -------
+    signs : ndarray
+      Boolean vector of sample signs
+    amps : ndarray
+      Boolean vector of sample power
+    '''
+
     # Signal power is a square of the amplitude
     power = numpy.square(band_samples)
     totalPower = numpy.sum(power)
@@ -81,10 +104,10 @@ class BandTwoBitsEncoder(Encoder):
     # Signal signs and amplitude
     signs, amps = self.convertBand(band_samples)
 
+    self.ensureExtraCapacity(n_samples * 2)
+
     n_bits = self.n_bits
     bits = self.bits
-    if len(bits) < n_bits + 2 * n_samples:
-      bits.resize(n_bits + 2 * n_samples)
 
     for i in range(n_samples):
       if signs[i]:

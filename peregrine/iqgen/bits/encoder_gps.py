@@ -134,13 +134,13 @@ class GPSL1L2TwoBitsEncoder(Encoder):
     n_samples = len(band1_samples)
 
     # Signal signs and amplitude
-    signs1, amps1 = self.convertBand(band1_samples)
-    signs2, amps2 = self.convertBand(band2_samples)
+    signs1, amps1 = BandTwoBitsEncoder.convertBand(band1_samples)
+    signs2, amps2 = BandTwoBitsEncoder.convertBand(band2_samples)
+
+    self.ensureExtraCapacity(n_samples * 4)
 
     n_bits = self.n_bits
     bits = self.bits
-    if len(bits) < n_bits + 2 * n_samples:
-      bits.resize(n_bits + 2 * n_samples)
 
     for i in range(n_samples):
       if signs1[i]:

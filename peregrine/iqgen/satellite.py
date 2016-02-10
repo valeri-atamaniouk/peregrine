@@ -196,9 +196,9 @@ class GPS_SV(SV):
       True, if the band is supported and enabled; False otherwise.
     '''
     result = None
-    if bandIndex == Chip.GPS.L1:
+    if bandIndex == Chip.GPS.L1.INDEX:
       result = self.l1caEnabled
-    elif bandIndex == Chip.GPS.L2:
+    elif bandIndex == Chip.GPS.L2.INDEX:
       result = self.l2cEnabled
     else:
       result = False
