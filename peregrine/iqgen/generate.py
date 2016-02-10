@@ -12,7 +12,6 @@ The :mod:`peregrine.iqgen.generate` module contains classes and functions
 related to main loop of samples generation.
 
 """
-from peregrine.iqgen.if_iface import Chip
 from peregrine.iqgen.bits.low_pass_filter import LowPassFilter
 
 from peregrine.iqgen.bits import signals
@@ -25,6 +24,7 @@ def generateSamples(outputFile,
                     encoder,
                     time0S,
                     nSamples,
+                    outputConfig,
                     SNR=None,
                     lowPass=False,
                     debugLog=False):
@@ -43,6 +43,8 @@ def generateSamples(outputFile,
     Time epoch for the first sample.
   nSamples : long
     Total number of samples to generate.
+  outputConfig : object
+    Output parameters
   SNR : float, optional
     When specified, adds random noise to the output.
   lowPass : bool, optional
@@ -55,7 +57,7 @@ def generateSamples(outputFile,
   # Print out parameters
   #
   print "Generating samples, sample rate={} Hz, interval={} seconds, SNR={}".format(
-        Chip.SAMPLE_RATE_HZ, nSamples / Chip.SAMPLE_RATE_HZ, SNR)
+        outputConfig.SAMPLE_RATE_HZ, nSamples / outputConfig.SAMPLE_RATE_HZ, SNR)
 
   #
   # Print out SV parameters
@@ -91,22 +93,24 @@ def generateSamples(outputFile,
   if SNR is not None:
     Nsigma = scipy.sqrt(1. / (4. * 10. ** (SNR / 10.)))
   else:
-    Nsigma = 0.
+    Nsigma = None
 
   if (lowPass):
-    lpf = [LowPassFilter(), LowPassFilter(), LowPassFilter(), LowPassFilter()]
+    lpf = [LowPassFilter() for _ in range(4)]
+
   if (debugLog): _out_txt = open("out.txt", "wt");
 
   userTime_s = float(time0S)
-  deltaUserTime_s = float(Chip.SAMPLE_BATCH_SIZE) / Chip.SAMPLE_RATE_HZ
+  deltaUserTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / outputConfig.SAMPLE_RATE_HZ
   oldPerformanceCounter = 0
 
-  sigs = scipy.ndarray((4, Chip.SAMPLE_BATCH_SIZE), dtype=float)
+  sigs = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
 
-  for _s in range(0, nSamples, Chip.SAMPLE_BATCH_SIZE):
+  for _s in range(0l, nSamples, outputConfig.SAMPLE_BATCH_SIZE):
 
     # Print performance statistics
-    if (_s > 0 and (_s) % 100000 == 0):
+    deltaProcessingTime_s = time.clock() - _t0
+    if (deltaProcessingTime_s >= 1.):
       newSamples = _s - oldPerformanceCounter
       oldPerformanceCounter = _s
       _t1 = time.clock()
@@ -126,9 +130,9 @@ def generateSamples(outputFile,
             _timeLeftD, _timeLeftH, _timeLeftM, _s1,
             _msec)
 
-    if (Nsigma != 0.):
+    if Nsigma is not None:
       # Initialize signal array with noise
-      sigs = Nsigma * scipy.randn(4, Chip.SAMPLE_BATCH_SIZE)
+      sigs = Nsigma * scipy.randn(4, outputConfig.SAMPLE_BATCH_SIZE)
     else:
       sigs.fill(0.)
 
@@ -137,14 +141,17 @@ def generateSamples(outputFile,
       sv = sv_list[svIdx]
 
       # Add signal from satellite to signal accumulator
-      t = sv.getBatchSignals(userTime_s, Chip.SAMPLE_BATCH_SIZE, sigs, Chip)
+      t = sv.getBatchSignals(userTime_s,
+                             outputConfig.SAMPLE_BATCH_SIZE,
+                             sigs,
+                             outputConfig)
 
       # Debugging output
       if debugLog:
         sv_sigs = t[0]
         idx = t[2]
         codes = t[3]
-        for smpl in range(Chip.SAMPLE_BATCH_SIZE):
+        for smpl in range(outputConfig.SAMPLE_BATCH_SIZE):
           _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
 
     if lowPass:

@@ -24,7 +24,9 @@ from peregrine.iqgen.bits.doppler_sine import sineDoppler
 import peregrine.iqgen.bits.signals as signals
 import scipy.constants
 
-from peregrine.iqgen.if_iface import Chip
+from peregrine.iqgen.if_iface import LowRateConfig
+from peregrine.iqgen.if_iface import NormalRateConfig
+from peregrine.iqgen.if_iface import HighRateConfig
 
 # Message data
 from peregrine.iqgen.bits.message_const import Message as ConstMessage
@@ -290,6 +292,10 @@ def prepareArgsParser():
   parser.add_argument('--output',
                       type=argparse.FileType('wb'),
                       help="Output file name")
+  parser.add_argument('--profile',
+                      default="low_rate",
+                      choices=["low_rate", "normal_rate", "high_rate"],
+                      help="Output profile configuration")
 
   return parser
 
@@ -303,30 +309,46 @@ def main():
     parser.print_help()
     return 0
 
+  if args.profile == "low_rate":
+    outputConfig = LowRateConfig
+  elif args.profile == "normal_rate":
+    outputConfig = NormalRateConfig
+  elif args.profile == "high_rate":
+    outputConfig = HighRateConfig
+  else:
+    raise ValueError()
+
+  print "Output configuration:"
+  print "\tDescription:", outputConfig.NAME
+  print "\tSampling rate:", outputConfig.SAMPLE_RATE_HZ
+  print "\tBatch size:", outputConfig.SAMPLE_BATCH_SIZE
+  print "\tGPS L1 IF:", outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
+  print "\tGPS L2 IF:", outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
+
   # Check which signals are enabled on each of satellite to select proper
   # output encoder
   enabledGPSL1 = False
   enabledGPSL2 = False
 
   for sv in args.gps_sv:
-    enabledGPSL1 |= sv.isBandEnabled(Chip.GPS.L1.INDEX)
-    enabledGPSL2 |= sv.isBandEnabled(Chip.GPS.L2.INDEX)
+    enabledGPSL1 |= sv.isBandEnabled(outputConfig.GPS.L1.INDEX, outputConfig)
+    enabledGPSL2 |= sv.isBandEnabled(outputConfig.GPS.L2.INDEX, outputConfig)
 
   # Configure data encoder
   if args.encoder == "1bit":
     if enabledGPSL1 and enabledGPSL2:
-      encoder = GPSL1L2BitEncoder()
+      encoder = GPSL1L2BitEncoder(outputConfig)
     elif enabledGPSL2:
-      encoder = GPSL2BitEncoder()
+      encoder = GPSL2BitEncoder(outputConfig)
     else:
-      encoder = GPSL1BitEncoder()
+      encoder = GPSL1BitEncoder(outputConfig)
   elif args.encoder == "2bits":
     if enabledGPSL1 and enabledGPSL2:
-      encoder = GPSL1L2TwoBitsEncoder()
+      encoder = GPSL1L2TwoBitsEncoder(outputConfig)
     elif enabledGPSL2:
-      encoder = GPSL2TwoBitsEncoder()
+      encoder = GPSL2TwoBitsEncoder(outputConfig)
     else:
-      encoder = GPSL1TwoBitsEncoder()
+      encoder = GPSL1TwoBitsEncoder(outputConfig)
   else:
     raise ValueError("Encoder type is not supported")
 
@@ -357,7 +379,7 @@ def main():
   print "Computed symbol/chip delay={} seconds".format(time0_s)
 
   startTime_s = time.clock()
-  n_samples = long(Chip.SAMPLE_RATE_HZ * args.interval)
+  n_samples = long(outputConfig.SAMPLE_RATE_HZ * args.interval)
 
   print "Generating {} samples for {} seconds".format(n_samples, args.interval)
 
@@ -366,6 +388,7 @@ def main():
                   encoder,
                   time0_s,
                   n_samples,
+                  outputConfig,
                   SNR=args.snr,
                   lowPass=args.lpf,
                   debugLog=args.debug)

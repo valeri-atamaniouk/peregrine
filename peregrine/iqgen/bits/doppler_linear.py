@@ -15,7 +15,6 @@ related to generation of signals with linearily changing doppler.
 
 import numpy
 import scipy.constants
-from peregrine.iqgen import if_iface
 from peregrine.iqgen.bits.doppler_base import DopplerBase
 
 class Doppler(DopplerBase):
@@ -164,7 +163,7 @@ class Doppler(DopplerBase):
       Code combined with data
     '''
 
-    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, if_iface.Chip)
+    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig)
     userTimeX_s = userTime0_s + deltaUserTime_s
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
@@ -202,7 +201,7 @@ class Doppler(DopplerBase):
       phaseAll *= userTimeAll_s
       phaseAll += D_2
     elif algMode == 3:
-      phi_E = 2 * scipy.constants.pi * D_0 / if_iface.Chip.SAMPLE_RATE_HZ
+      phi_E = 2 * scipy.constants.pi * D_0 / outputConfig.SAMPLE_RATE_HZ
       phaseAll = scipy.ndarray(n_samples, dtype=self.dtype)
       phaseAll.fill(phi_E + self.phaseShift)
       numpy.cumsum(phaseAll, out=phaseAll)
@@ -242,7 +241,7 @@ class Doppler(DopplerBase):
       chipAll_idx *= userTimeAll_s
       chipAll_idx += D_C2
     elif algMode == 3:
-      phi_E = 2 * scipy.constants.pi * D_C0 / if_iface.Chip.SAMPLE_RATE_HZ
+      phi_E = 2 * scipy.constants.pi * D_C0 / outputConfig.SAMPLE_RATE_HZ
       chipAll_idx = scipy.ndarray(n_samples, dtype=self.dtype)
       chipAll_idx.fill(phi_E + self.chipShift)
       numpy.cumsum(chipAll_idx, out=chipAll_idx)

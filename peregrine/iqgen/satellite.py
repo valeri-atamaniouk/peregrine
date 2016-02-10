@@ -14,8 +14,6 @@ related to satellite configuration.
 """
 import peregrine.iqgen.bits.signals as signals
 
-from peregrine.iqgen.if_iface import Chip
-
 from peregrine.iqgen.bits.doppler_zero import Doppler
 from peregrine.iqgen.bits.message_const import Message
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
@@ -165,24 +163,24 @@ class GPS_SV(SV):
                                          n_samples,
                                          self.amplitude,
                                          signals.GPS.L1CA,
-                                         Chip.GPS.L1.INTERMEDIATE_FREQUENCY_HZ,
+                                         outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l1caMessage,
                                          self.l1caCode,
                                          outputConfig)
-      numpy.add(samples[Chip.GPS.L1.INDEX], values[0], out=samples[Chip.GPS.L1.INDEX])
+      numpy.add(samples[outputConfig.GPS.L1.INDEX], values[0], out=samples[outputConfig.GPS.L1.INDEX])
     if (self.l2cEnabled):
       values = self.doppler.computeBatch(time0_s,
                                          n_samples,
                                          self.amplitude,
                                          signals.GPS.L2C,
-                                         Chip.GPS.L2.INTERMEDIATE_FREQUENCY_HZ,
+                                         outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ,
                                          self.l2cMessage,
                                          self.l2cCode,
                                          outputConfig)
-      numpy.add(samples[Chip.GPS.L2.INDEX], values[0], out=samples[Chip.GPS.L2.INDEX])
+      numpy.add(samples[outputConfig.GPS.L2.INDEX], values[0], out=samples[outputConfig.GPS.L2.INDEX])
     return values
 
-  def isBandEnabled(self, bandIndex):
+  def isBandEnabled(self, bandIndex, outputConfig):
     '''
     Checks if particular band is supported and enabled.
 
@@ -190,15 +188,17 @@ class GPS_SV(SV):
     ----------
     bandIndex : int
       Signal band index
+    outputConfig : object
+      Output configuration
 
     Returns:
     bool
       True, if the band is supported and enabled; False otherwise.
     '''
     result = None
-    if bandIndex == Chip.GPS.L1.INDEX:
+    if bandIndex == outputConfig.GPS.L1.INDEX:
       result = self.l1caEnabled
-    elif bandIndex == Chip.GPS.L2.INDEX:
+    elif bandIndex == outputConfig.GPS.L2.INDEX:
       result = self.l2cEnabled
     else:
       result = False

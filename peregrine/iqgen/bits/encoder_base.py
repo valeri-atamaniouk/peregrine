@@ -100,6 +100,5 @@ class Encoder(object):
       Number of extra bits to reserve space for
     '''
     if len(self.bits) < self.n_bits + extraBits:
-      print "Resizing from ", len(self.bits), "to", self.n_bits + extraBits
       self.bits.resize(self.n_bits + extraBits)
 

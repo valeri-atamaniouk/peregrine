@@ -13,8 +13,6 @@ related to common satellite signal definitions and operations.
 
 """
 
-from peregrine.iqgen.if_iface import Chip
-
 import scipy.constants
 
 class GPS:
@@ -54,7 +52,6 @@ class GPS:
     '''
     GPS L1 C/A parameters and utilities.
     '''
-    INDEX = Chip.GPS.L1.INDEX
     SYMBOL_RATE_HZ = 50
     CENTER_FREQUENCY_HZ = 1575.42e6
     CODE_CHIP_RATE_HZ = 1023000
@@ -118,7 +115,6 @@ class GPS:
     GPS L2 C parameters and utilities.
     '''
 
-    INDEX = Chip.GPS.L2.INDEX
     SYMBOL_RATE_HZ = 50
     CENTER_FREQUENCY_HZ = 1227.60e6
     CODE_CHIP_RATE_HZ = 1023000

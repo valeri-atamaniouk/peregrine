@@ -16,40 +16,53 @@ related to generating GPS signal output.
 from peregrine.iqgen.bits.encoder_base import Encoder
 from peregrine.iqgen.bits.encoder_1bit import BandBitEncoder
 from peregrine.iqgen.bits.encoder_2bits import BandTwoBitsEncoder
-from peregrine.iqgen.if_iface import Chip
-
-GPS_L1_INDEX = Chip.GPS.L1.INDEX
-GPS_L2_INDEX = Chip.GPS.L2.INDEX
 
 class GPSL1BitEncoder(BandBitEncoder):
   '''
   Generic single bit encoder for GPS L1 C/A signal
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
-    super(GPSL1BitEncoder, self).__init__(GPS_L1_INDEX)
+    super(GPSL1BitEncoder, self).__init__(outputConfig.GPS.L1.INDEX)
 
 class GPSL2BitEncoder(BandBitEncoder):
   '''
   Generic single bit encoder for GPS L2 Civil signal
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L2 C band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
-    super(GPSL2BitEncoder, self).__init__(GPS_L2_INDEX)
+    super(GPSL2BitEncoder, self).__init__(outputConfig.GPS.L2.INDEX)
 
 class GPSL1L2BitEncoder(Encoder):
   '''
   Generic single bit encoder for GPS L1 C/A and L2 Civil signals
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A and L2 C dual band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
     super(GPSL1L2BitEncoder, self).__init__()
+    self.l1Index = outputConfig.GPS.L1.INDEX
+    self.l2Index = outputConfig.GPS.L2.INDEX
 
   def addSamples(self, sample_array):
     '''
@@ -65,8 +78,8 @@ class GPSL1L2BitEncoder(Encoder):
     ndarray
       Array of type uint8 containing the encoded data.
     '''
-    band1_samples = sample_array[GPS_L1_INDEX]
-    band2_samples = sample_array[GPS_L2_INDEX]
+    band1_samples = sample_array[self.l1Index]
+    band2_samples = sample_array[self.l2Index]
     n_samples = len(band1_samples)
 
     self.ensureExtraCapacity(n_samples * 2)
@@ -92,31 +105,48 @@ class GPSL1TwoBitsEncoder(BandTwoBitsEncoder):
   '''
   Generic single bit encoder for GPS L1 C/A signal
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
-    super(GPSL1TwoBitsEncoder, self).__init__(GPS_L1_INDEX)
+    super(GPSL1TwoBitsEncoder, self).__init__(outputConfig.GPS.L1.INDEX)
 
 class GPSL2TwoBitsEncoder(BandTwoBitsEncoder):
   '''
   Generic single bit encoder for GPS L2 Civil signal
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L2 C band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
-    super(GPSL2TwoBitsEncoder, self).__init__(GPS_L2_INDEX)
+    super(GPSL2TwoBitsEncoder, self).__init__(outputConfig.GPS.L2.INDEX)
 
 class GPSL1L2TwoBitsEncoder(Encoder):
   '''
   Generic single bit encoder for GPS L1 C/A and L2 Civil signals
   '''
-  def __init__(self):
+  def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A and L2 C dual band single bit encoder object.
+
+    Parameters
+    ----------
+    outputConfig : object
+      Output parameters object.
     '''
     super(GPSL1L2TwoBitsEncoder, self).__init__()
+    self.l1Index = outputConfig.GPS.L1.INDEX
+    self.l2Index = outputConfig.GPS.L2.INDEX
 
   def addSamples(self, sample_array):
     '''
@@ -132,8 +162,8 @@ class GPSL1L2TwoBitsEncoder(Encoder):
     ndarray
       Array of type uint8 containing the encoded data.
     '''
-    band1_samples = sample_array[GPS_L1_INDEX]
-    band2_samples = sample_array[GPS_L2_INDEX]
+    band1_samples = sample_array[self.l1Index]
+    band2_samples = sample_array[self.l2Index]
     n_samples = len(band1_samples)
 
     # Signal signs and amplitude
