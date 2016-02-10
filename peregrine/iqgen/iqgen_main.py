@@ -116,7 +116,8 @@ def prepareArgsParser():
         raise ValueError("No SV specified")
       setattr(namespace, self.dest, values)
       # super(UpdateSv, self).__call__(parser, namespace, values, option_string)
-      self.doUpdate(sv_list[len(sv_list) - 1], parser, namespace, values, option_string)
+      self.doUpdate(sv_list[len(sv_list) - 1], parser, namespace, values,
+                    option_string)
 
     def doUpdate(self, sv, parser, namespace, values, option_string):
       pass
@@ -294,8 +295,9 @@ def prepareArgsParser():
                       type=argparse.FileType('wb'),
                       help="Output file name")
   parser.add_argument('--profile',
-                      default="low_rate",
-                      choices=["low_rate", "normal_rate", "high_rate", "adel_rate"],
+                      default="normal_rate",
+                      choices=["low_rate", "normal_rate", "high_rate",
+                               "adel_rate"],
                       help="Output profile configuration")
 
   return parser

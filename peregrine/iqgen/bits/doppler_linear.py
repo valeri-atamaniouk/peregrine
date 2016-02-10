@@ -204,7 +204,7 @@ class Doppler(DopplerBase):
 
     # phaseAll[i] = 0.5 * D_0 * T[i]^2 + (D_1 + IF) * T[i] + D_2) * 2 * pi
 
-    algMode = 1
+    algMode = 2
     if algMode == 1:
       phaseAll = scipy.ndarray(n_samples, dtype=self.dtype)
       phaseAll.fill(D_0 * 0.5)

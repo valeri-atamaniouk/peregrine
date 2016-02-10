@@ -178,36 +178,59 @@ class Doppler(DopplerBase):
                                                  n_samples,
                                                  outputConfig)
     userTimeX_s = userTime0_s + deltaUserTime_s
-    userTimeAll_s = scipy.linspace(userTime0_s,
-                                   userTimeX_s,
-                                   n_samples,
-                                   dtype=self.dtype,
-                                   endpoint=False)
 
     # Computing doppler coefficients
     # D(t) = D_0 + A * sin(2 * pi / P * t)
     # I(D(t)dt)=D_0 * t + A * (1 - cos(2 * pi / P * t)) * P / (2 * pi)
-    # I(t) = (D_0 + F_i) * t + D_1 * (1 - cos(D_2 * t)) + D_3
+    # I(t) = (D_0 + F_i) * t + D_1 * (1. - cos(D_2 * t)) + D_3
+
+    # When Amplitude = 0 and D_0= 0 and D3 = 0
+    # I(t) = F_i * t
 
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = self.speed0_mps * freqRatio
-    D_1 = self.amplutude_mps * freqRatio
-    D_2 = self.period_s * freqRatio * 2. * scipy.constants.pi
+    D_1 = self.amplutude_mps * freqRatio / (2 * scipy.constants.pi) * self.period_s
+    D_2 = 2. * scipy.constants.pi / self.period_s
     D_3 = self.distance0_m * freqRatio
 
-    algMode = 1
+    # print "D_0=", D_0, "D_1=", D_1, "D_2=", D_2, "D_3=", D_3
+    # print "User time", userTimeAll_s
+    algMode = 2
     if algMode == 1:
-      phaseAll = scipy.copy(userTimeAll_s)
-      phaseAll *= D_2
+      userTimeAll_s = scipy.linspace(userTime0_s,
+                                     userTimeX_s,
+                                     n_samples,
+                                     dtype=self.dtype,
+                                     endpoint=False)
+      phaseAll = scipy.linspace(D_2 * userTime0_s,
+                                D_2 * userTimeX_s,
+                                n_samples,
+                                dtype=self.dtype,
+                                endpoint=False)
+
       numpy.cos(phaseAll, out=phaseAll)
-      numpy.negative(phaseAll, out=phaseAll)
-      phaseAll += 1.
-      phaseAll *= D_1
-      phaseAll += (D_0 + ifFrequency_hz) * userTimeAll_s
-      phaseAll += D_3
-      phaseAll *= 2 * scipy.constants.pi
+      phaseAll -= 1.
+      phaseAll *= -D_1 * 2. * scipy.constants.pi
+      phaseAll += (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi * userTimeAll_s
+      phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
-      pass
+      phaseAll = scipy.linspace(D_2 * userTime0_s,
+                                D_2 * userTimeX_s,
+                                n_samples,
+                                dtype=self.dtype,
+                                endpoint=False)
+      numpy.cos(phaseAll, out=phaseAll)
+      phaseAll -= 1.
+      chipAll_idx = numpy.copy(phaseAll)
+      phaseAll *= -D_1 * 2. * scipy.constants.pi
+      C = (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi
+      C2 = 2 * scipy.constants.pi * D_3
+      phaseAll += scipy.linspace(C * userTime0_s + C2,
+                                 C * userTimeX_s + C2,
+                                 n_samples,
+                                 dtype=self.dtype,
+                                 endpoint=False)
+      # phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 3:
       pass
 
@@ -217,23 +240,28 @@ class Doppler(DopplerBase):
 
     # PRN and data index computation
     # Computing doppler coefficients
-
     chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / carrierSignal.CENTER_FREQUENCY_HZ
     D_C0 = D_0 * chipFreqRatio
     D_C1 = D_1 * chipFreqRatio
-    D_C2 = D_2 * chipFreqRatio
+    D_C2 = D_2  # * chipFreqRatio
     D_C3 = D_3 * chipFreqRatio
 
     if algMode == 1:
       chipAll_idx = userTimeAll_s * D_C2
       numpy.cos(chipAll_idx, out=chipAll_idx)
-      numpy.negative(chipAll_idx, out=chipAll_idx)
-      chipAll_idx += 1.
-      chipAll_idx *= D_C1
-      chipAll_idx += (D_C0 + ifFrequency_hz) * userTimeAll_s
+      chipAll_idx -= 1.
+      chipAll_idx *= -D_C1
+      chipAll_idx += (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ) * userTimeAll_s
       chipAll_idx += D_C3
     elif algMode == 2:
-      pass
+      # chipAll_idx = copy(..)
+      chipAll_idx *= -D_C1
+      C = (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ)
+      chipAll_idx += scipy.linspace(C * userTime0_s + D_C3,
+                                    C * userTimeX_s + D_C3,
+                                    n_samples,
+                                    dtype=self.dtype,
+                                    endpoint=False)
     elif algMode == 3:
       pass
 
