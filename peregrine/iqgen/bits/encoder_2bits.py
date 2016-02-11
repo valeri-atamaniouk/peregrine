@@ -6,13 +6,14 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-import numpy
 
 """
 The :mod:`peregrine.iqgen.encoder_2bits` module contains classes and functions
 related to generating two bits signal output.
 
 """
+
+import numpy
 
 from peregrine.iqgen.bits.encoder_base import Encoder
 

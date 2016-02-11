@@ -26,7 +26,7 @@ class DopplerBase(object):
   # Internal value
   __startIndex = numpy.iinfo(long).min
 
-  def __init__(self, dtype=numpy.float128):
+  def __init__(self, dtype=numpy.longdouble):
     '''
     Constructs doppler base object for movement control.
 
@@ -91,8 +91,7 @@ class DopplerBase(object):
     raise NotImplementedError()
 
   def computeBatch(self,
-                   userTime0_s,
-                   n_samples,
+                   userTimeAll_s,
                    amplitude,
                    carrierSignal,
                    ifFrequency_hz,
@@ -103,10 +102,8 @@ class DopplerBase(object):
 
     Parameters
     ----------
-    userTime0_s : float
-      Observer's time in seconds of the beginning of the interval.
-    n_samples : int
-      Number of samples to generate
+    userTimeAll_s : numpy.ndarray(dtype=numpy.float)
+      Sample timestamps in seconds
     amplitude : float
       Signal amplitude object.
     carrierSignal : object

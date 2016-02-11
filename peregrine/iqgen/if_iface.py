@@ -13,8 +13,6 @@ related to radio interface parameters
 
 """
 
-LOW_RATE = True
-
 class LowRateConfig(object):
   '''
   Output control configuration for quick tests.
@@ -152,7 +150,7 @@ class HighRateConfig(object):
 
   GPS = NormalRateConfig.GPS
 
-class AdelRateConfig(object):
+class CustomRateConfig(object):
   '''
   Output control configuration for comparison tests.
 

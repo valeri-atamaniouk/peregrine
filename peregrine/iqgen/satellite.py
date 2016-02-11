@@ -15,7 +15,7 @@ related to satellite configuration.
 """
 import peregrine.iqgen.bits.signals as signals
 
-from peregrine.iqgen.bits.doppler_zero import Doppler
+from peregrine.iqgen.bits.doppler_poly import Doppler
 from peregrine.iqgen.bits.message_const import Message
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
 from peregrine.iqgen.bits.prn_gps_l2c import PrnCode as GPS_L2C_Code
@@ -41,7 +41,7 @@ class SV(object):
     '''
     super(SV, self).__init__()
     self.svName = svName
-    self.doppler = Doppler()
+    self.doppler = Doppler(())
 
   def getSvName(self):
     '''
@@ -138,16 +138,14 @@ class GPS_SV(SV):
     '''
     self.l2cMessage = message
 
-  def getBatchSignals(self, time0_s, n_samples, samples, outputConfig):
+  def getBatchSignals(self, userTimeAll_s, samples, outputConfig):
     '''
     Generates signal samples.
 
     Parameters
     ----------
-    time0_s : float
-      Observer's time in seconds for the interval start.
-    n_samples : int
-      Number of samples to generate.
+    userTimeAll_s : numpy.ndarray(n_samples, dtype=numpy.float64)
+      Vector of observer's timestamps in seconds for the interval start.
     samples : numpy.ndarray((4, n_samples))
       Array to which samples are added.
     outputConfig : object
@@ -160,25 +158,27 @@ class GPS_SV(SV):
     '''
     values = []
     if (self.l1caEnabled):
-      values = self.doppler.computeBatch(time0_s,
-                                         n_samples,
+      intermediateFrequency_hz = outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
+      frequencyIndex = outputConfig.GPS.L1.INDEX
+      values = self.doppler.computeBatch(userTimeAll_s,
                                          self.amplitude,
                                          signals.GPS.L1CA,
-                                         outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ,
+                                         intermediateFrequency_hz,
                                          self.l1caMessage,
                                          self.l1caCode,
                                          outputConfig)
-      numpy.add(samples[outputConfig.GPS.L1.INDEX], values[0], out=samples[outputConfig.GPS.L1.INDEX])
+      numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
     if (self.l2cEnabled):
-      values = self.doppler.computeBatch(time0_s,
-                                         n_samples,
+      intermediateFrequency_hz = outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
+      frequencyIndex = outputConfig.GPS.L2.INDEX
+      values = self.doppler.computeBatch(userTimeAll_s,
                                          self.amplitude,
                                          signals.GPS.L2C,
-                                         outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ,
+                                         intermediateFrequency_hz,
                                          self.l2cMessage,
                                          self.l2cCode,
                                          outputConfig)
-      numpy.add(samples[outputConfig.GPS.L2.INDEX], values[0], out=samples[outputConfig.GPS.L2.INDEX])
+      numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
     return values
 
   def isBandEnabled(self, bandIndex, outputConfig):

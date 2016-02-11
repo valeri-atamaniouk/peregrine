@@ -19,6 +19,24 @@ from peregrine.iqgen.bits import signals
 import scipy
 import time
 
+def computeTimeIntervalS(outputConfig):
+  '''
+  Helper for computing generation interval duration in seconds.
+
+  Parameters
+  ----------
+  outputConfig : object
+    Output configuration.
+
+  Returns
+  -------
+  float
+    Generation interval duration in seconds
+  '''
+  deltaTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / outputConfig.SAMPLE_RATE_HZ
+  return deltaTime_s
+
+
 def generateSamples(outputFile,
                     sv_list,
                     encoder,
@@ -108,6 +126,8 @@ def generateSamples(outputFile,
 
   sigs = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
 
+  deltaUserTime_s = computeTimeIntervalS(outputConfig)
+
   for _s in range(0l, nSamples, outputConfig.SAMPLE_BATCH_SIZE):
 
     # Print performance statistics
@@ -138,13 +158,19 @@ def generateSamples(outputFile,
     else:
       sigs.fill(0.)
 
+    userTimeX_s = userTime_s + deltaUserTime_s
+    userTimeAll_s = scipy.linspace(userTime_s,
+                                   userTimeX_s,
+                                   outputConfig.SAMPLE_BATCH_SIZE,
+                                   endpoint=False)
+
+
     # Sum up signals for all SVs
     for svIdx in range(len(sv_list)):
       sv = sv_list[svIdx]
 
       # Add signal from satellite to signal accumulator
-      t = sv.getBatchSignals(userTime_s,
-                             outputConfig.SAMPLE_BATCH_SIZE,
+      t = sv.getBatchSignals(userTimeAll_s,
                              sigs,
                              outputConfig)
 

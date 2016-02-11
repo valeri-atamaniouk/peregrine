@@ -40,12 +40,7 @@ class GPS:
     float
       Doppler shift in hertz
     '''
-    if (distance_m > 0.):
-      doppler_hz = -velocity_mps * frequency_hz / scipy.constants.c
-    elif (distance_m < 0.):
-      doppler_hz = velocity_mps * frequency_hz / scipy.constants.c
-    else:
-      doppler_hz = 0.
+    doppler_hz = -velocity_mps * frequency_hz / scipy.constants.c
     return doppler_hz
 
   class L1CA:

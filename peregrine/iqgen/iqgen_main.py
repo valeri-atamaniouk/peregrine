@@ -6,7 +6,6 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-import numpy
 """
 The :mod:`peregrine.iqgen.iqgen_main` module contains classes and functions
 related to parameter processing.
@@ -15,13 +14,14 @@ related to parameter processing.
 import time
 import argparse
 import scipy.constants
+import numpy
 
 from peregrine.iqgen.satellite import GPS_SV
 
 # Doppler objects
-from peregrine.iqgen.bits.doppler_const import constDoppler
-from peregrine.iqgen.bits.doppler_linear import linearDoppler
-from peregrine.iqgen.bits.doppler_zero import Doppler as Stationary
+from peregrine.iqgen.bits.doppler_poly import zeroDoppler
+from peregrine.iqgen.bits.doppler_poly import constDoppler
+from peregrine.iqgen.bits.doppler_poly import linearDoppler
 from peregrine.iqgen.bits.doppler_sine import sineDoppler
 
 # Amplitude objects
@@ -34,7 +34,7 @@ import peregrine.iqgen.bits.signals as signals
 from peregrine.iqgen.if_iface import LowRateConfig
 from peregrine.iqgen.if_iface import NormalRateConfig
 from peregrine.iqgen.if_iface import HighRateConfig
-from peregrine.iqgen.if_iface import AdelRateConfig
+from peregrine.iqgen.if_iface import CustomRateConfig
 
 # Message data
 from peregrine.iqgen.bits.message_const import Message as ConstMessage
@@ -79,6 +79,9 @@ def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
      User's time in seconds when the user starts receiving the given symbol
      and code.
   '''
+  if symbol_index == 0 and chip_index == 0:
+    return 0.
+
   symbolDelay_s = (1. / signal.SYMBOL_RATE_HZ) * symbol_index
   chipDelay_s = (1. / signal.CODE_CHIP_RATE_HZ) * chip_index
   distance_m = doppler.computeDistanceM(symbolDelay_s + chipDelay_s)
@@ -98,23 +101,34 @@ def prepareArgsParser():
       super(AddSv, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-      sv = GPS_SV(int(values))
+      # Initialize SV list if not yet done
       if namespace.gps_sv is None:
         namespace.gps_sv = []
+
+      # Add SV to the tail of the list.
+      sv = GPS_SV(int(values))
       namespace.gps_sv.append(sv)
+
       # Reset all configuration parameters
+
+      # Doppler
       namespace.doppler_type = "zero"
       namespace.doppler_value = 0.
       namespace.doppler_speed = 0.
       namespace.doppler_distance = 0.
-      namespace.message_type = "zero"
-      namespace.message_file = None
-      namespace.amplitude = 1.
       namespace.doppler_amplitude = 0.
       namespace.doppler_period = 1.
-      namespace.amplitude_value0 = None
-      namespace.amplitude_value1 = None
-      namespace.amplitude_value2 = None
+
+      # Source message data
+      namespace.message_type = "zero"
+      namespace.message_file = None
+
+      # Amplitude parameters
+      namespace.amplitude_type = "poly"
+      namespace.amplitude_a0 = None
+      namespace.amplitude_a1 = None
+      namespace.amplitude_a2 = None
+      namespace.amplitude_a3 = None
       namespace.amplitude_period = None
 
   class UpdateSv(argparse.Action):
@@ -164,28 +178,27 @@ def prepareArgsParser():
       else:
         raise ValueError("Signal band must be specified before doppler")
 
+      print "Creating doppler: ", namespace.doppler_type
       if namespace.doppler_type == "zero":
-        doppler = Stationary(namespace.doppler_distance)
+        doppler = zeroDoppler(namespace.doppler_distance, frequency_hz)
       elif namespace.doppler_type == "const":
         doppler = constDoppler(namespace.doppler_distance,
                                frequency_hz,
                                namespace.doppler_value)
-        sv.doppler = doppler
       elif namespace.doppler_type == "linear":
         doppler = linearDoppler(namespace.doppler_distance,
-                                namespace.doppler_value,
                                 frequency_hz,
+                                namespace.doppler_value,
                                 namespace.doppler_speed)
-        sv.doppler = doppler
       elif namespace.doppler_type == "sine":
         doppler = sineDoppler(namespace.doppler_distance,
-                              namespace.doppler_value,
                               frequency_hz,
+                              namespace.doppler_value,
                               namespace.doppler_amplitude,
                               namespace.doppler_period)
-        sv.doppler = doppler
       else:
         raise ValueError("Unsupported doppler type")
+      sv.doppler = doppler
 
   class UpdateAmplitudeType(UpdateSv):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -194,26 +207,29 @@ def prepareArgsParser():
     def doUpdate(self, sv, parser, namespace, values, option_string):
       if namespace.amplitude_type == "poly":
         coeffs = []
-        if namespace.amplitude_value0 is not None:
-          coeffs.append(namespace.amplitude_value0)
-          if namespace.amplitude_value1 is not None:
-            coeffs.append(namespace.amplitude_value1)
-            if namespace.amplitude_value2 is not None:
-              coeffs.append(namespace.amplitude_value2)
-        else:
-          coeffs.append(1.)
+        hasHighOrder = False
+
+        srcA = [namespace.amplitude_a3, namespace.amplitude_a2,
+                namespace.amplitude_a1, namespace.amplitude_a0]
+        for a in srcA:
+          if a is not None:
+            coeffs.append(a)
+            hasHighOrder = True
+          elif hasHighOrder:
+            coeffs.append(0.)
         amplitude = AmplitudePoly(tuple(coeffs))
       elif namespace.amplitude_type == "sine":
-        if namespace.amplitude_value0 is None:
-          namespace.amplitude_value0 = 1.
-        if namespace.amplitude_value1 is None:
-          namespace.amplitude_value1 = 0.5
-        if namespace.amplitude_period is None:
-          namespace.amplitude_period = 0.5
+        initial = 1.
+        ampl = 0.5
+        period_s = 1.
+        if namespace.amplitude_a0 is not None:
+          initial = namespace.amplitude_a0
+        if namespace.amplitude_a1 is not None:
+          ampl = namespace.amplitude_a1
+        if namespace.amplitude_period is not None:
+          period_s = namespace.amplitude_period
 
-        amplitude = AmplitudeSine(namespace.amplitude_value0,
-                                  namespace.amplitude_value1,
-                                  namespace.amplitude_period)
+        amplitude = AmplitudeSine(initial, ampl, period_s)
       else:
         raise ValueError("Unsupported amplitude type")
       sv.setAmplitude(amplitude)
@@ -292,23 +308,27 @@ def prepareArgsParser():
   parser.add_argument('--amplitude-type',
                       default="poly",
                       choices=["poly", "sine"],
-                      help="Configure amplitude type",
+                      help="Configure amplitude type: polynomial or sine.",
                       action=UpdateAmplitudeType)
-  parser.add_argument('--amplitude-value0',
+  parser.add_argument('--amplitude-a0',
                       type=float,
-                      help="Amplitude coefficient A0",
+                      help="Amplitude coefficient (a0 for polynomial; offset for sine)",
                       action=UpdateAmplitudeType)
-  parser.add_argument('--amplitude-value1',
+  parser.add_argument('--amplitude-a1',
                       type=float,
-                      help="Amplitude coefficient A1",
+                      help="Amplitude coefficient (a1 for polynomial, amplitude for size)",
                       action=UpdateAmplitudeType)
-  parser.add_argument('--amplitude-value2',
+  parser.add_argument('--amplitude-a2',
                       type=float,
-                      help="Amplitude coefficient A3",
+                      help="Amplitude coefficient (a2 for polynomial)",
+                      action=UpdateAmplitudeType)
+  parser.add_argument('--amplitude-a3',
+                      type=float,
+                      help="Amplitude coefficient (a3 for polynomial)",
                       action=UpdateAmplitudeType)
   parser.add_argument('--amplitude-period',
                       type=float,
-                      help="Amplitude period",
+                      help="Amplitude period in seconds for sine",
                       action=UpdateAmplitudeType)
   parser.add_argument('--message-type', default="zero",
                       choices=["zero", "one", "zero+one"],
@@ -349,7 +369,7 @@ def prepareArgsParser():
   parser.add_argument('--profile',
                       default="normal_rate",
                       choices=["low_rate", "normal_rate", "high_rate",
-                               "adel_rate"],
+                               "custom_rate"],
                       help="Output profile configuration")
 
   return parser
@@ -370,8 +390,8 @@ def main():
     outputConfig = NormalRateConfig
   elif args.profile == "high_rate":
     outputConfig = HighRateConfig
-  elif args.profile == "adel_rate":
-    outputConfig = AdelRateConfig
+  elif args.profile == "custom_rate":
+    outputConfig = CustomRateConfig
   else:
     raise ValueError()
 

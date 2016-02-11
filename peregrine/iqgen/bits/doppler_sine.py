@@ -132,8 +132,7 @@ class Doppler(DopplerBase):
     return -self.distance0_m / scipy.constants.c
 
   def computeBatch(self,
-                   userTime0_s,
-                   n_samples,
+                   userTimeAll_s,
                    amplitude,
                    carrierSignal,
                    ifFrequency_hz,
@@ -145,10 +144,8 @@ class Doppler(DopplerBase):
 
     Parameters
     ----------
-    userTime0_s : float
-      Observer's time in seconds of the beginning of the interval.
-    n_samples : int
-      Number of samples to generate
+    userTimeAll_s : numpy.ndarray(dtype=numpy.float)
+      Sample timestamps in seconds
     amplitude : object
       Signal amplitude.
     carrierSignal : object
@@ -174,11 +171,6 @@ class Doppler(DopplerBase):
       Code combined with data
     '''
 
-    deltaUserTime_s = self.computeDeltaUserTimeS(userTime0_s,
-                                                 n_samples,
-                                                 outputConfig)
-    userTimeX_s = userTime0_s + deltaUserTime_s
-
     # Computing doppler coefficients
     # D(t) = D_0 + A * sin(2 * pi / P * t)
     # I(D(t)dt)=D_0 * t + A * (1 - cos(2 * pi / P * t)) * P / (2 * pi)
@@ -195,19 +187,10 @@ class Doppler(DopplerBase):
 
     # print "D_0=", D_0, "D_1=", D_1, "D_2=", D_2, "D_3=", D_3
     # print "User time", userTimeAll_s
-    userTimeAll_s = scipy.linspace(userTime0_s,
-                                   userTimeX_s,
-                                   n_samples,
-                                   dtype=self.dtype,
-                                   endpoint=False)
 
     algMode = 2
     if algMode == 1:
-      phaseAll = scipy.linspace(D_2 * userTime0_s,
-                                D_2 * userTimeX_s,
-                                n_samples,
-                                dtype=self.dtype,
-                                endpoint=False)
+      phaseAll = D_2 * userTimeAll_s
 
       numpy.cos(phaseAll, out=phaseAll)
       phaseAll -= 1.
@@ -215,22 +198,15 @@ class Doppler(DopplerBase):
       phaseAll += (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi * userTimeAll_s
       phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
-      phaseAll = scipy.linspace(D_2 * userTime0_s,
-                                D_2 * userTimeX_s,
-                                n_samples,
-                                dtype=self.dtype,
-                                endpoint=False)
+      phaseAll = D_2 * userTimeAll_s
       numpy.cos(phaseAll, out=phaseAll)
       phaseAll -= 1.
       chipAll_idx = numpy.copy(phaseAll)
       phaseAll *= -D_1 * 2. * scipy.constants.pi
       C = (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi
       C2 = 2 * scipy.constants.pi * D_3
-      phaseAll += scipy.linspace(C * userTime0_s + C2,
-                                 C * userTimeX_s + C2,
-                                 n_samples,
-                                 dtype=self.dtype,
-                                 endpoint=False)
+      phaseAll += C * userTimeAll_s
+      phaseAll += C2
       # phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 3:
       pass
@@ -258,19 +234,16 @@ class Doppler(DopplerBase):
       # chipAll_idx = copy(..)
       chipAll_idx *= -D_C1
       C = (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ)
-      chipAll_idx += scipy.linspace(C * userTime0_s + D_C3,
-                                    C * userTimeX_s + D_C3,
-                                    n_samples,
-                                    dtype=self.dtype,
-                                    endpoint=False)
+      chipAll_idx += C * userTimeAll_s
+      chipAll_idx + D_C3
     elif algMode == 3:
       pass
 
     chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
-    return (signal, userTimeX_s, chipAll_idx, chips)
+    return (signal, chipAll_idx, chips)
 
-def sineDoppler(distance0_m, doppler0_hz, frequency_hz, dopplerAmplitude_hz, dopplerPeriod_s):
+def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dopplerPeriod_s):
   '''
   Makes an object that corresponds to linear doppler change.
 
@@ -278,10 +251,10 @@ def sineDoppler(distance0_m, doppler0_hz, frequency_hz, dopplerAmplitude_hz, dop
   ----------
   distance0_m : float
     Initial distance to object.
-  doppler0_hz : float
-    Initial doppler shift in hz.
   frequency_hz
     Carrier frequency in Hz.
+  doppler0_hz : float
+    Initial doppler shift in hz.
   dopplerAmplitude_hz : float
     Doppler change amplitude in Hz
   dopplerPeriod_s : float
