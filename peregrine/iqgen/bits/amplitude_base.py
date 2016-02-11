@@ -13,25 +13,16 @@ related to base implementation of amplitude class.
 
 """
 
-import numpy
-
 class AmplitudeBase(object):
   '''
   Amplitude control for a signal source.
   '''
 
-  NAME = "Amptlitude"
-
-  def __init__(self, dtype=numpy.float128):
+  def __init__(self):
     '''
     Constructs doppler base object for movement control.
-
-    Parameters
-    dtype : object, optional
-      Numpy type for sample computations.
     '''
     super(AmplitudeBase, self).__init__()
-    self.dtype = dtype
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''

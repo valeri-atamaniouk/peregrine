@@ -23,7 +23,7 @@ class AmplitudeSine(AmplitudeBase):
   Amplitude control with polynomial dependency over time.
   '''
 
-  def __init__(self, initial, amplitude, period_s, dtype=numpy.float128):
+  def __init__(self, initial, amplitude, period_s):
     '''
     Constructs sine amplitude control object.
 
@@ -34,10 +34,8 @@ class AmplitudeSine(AmplitudeBase):
       Amplitude of change
     period_s : float
       Period of change in seconds
-    dtype : object, optional
-      Numpy type for sample computations.
     '''
-    super(AmplitudeSine, self).__init__(dtype)
+    super(AmplitudeSine, self).__init__()
     self.initial = initial
     self.amplitude = amplitude
     self.period_s = period_s
@@ -52,8 +50,8 @@ class AmplitudeSine(AmplitudeBase):
     string
       Literal presentation of object
     '''
-    return "AmplitudeSine(i={}, a={}, p={}, dtype={})".\
-      format(self.initial, self.amplitude, self.period_s, self.dtype)
+    return "AmplitudeSine(base={}, amp={}, p={} s)".\
+      format(self.initial, self.amplitude, self.period_s)
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''

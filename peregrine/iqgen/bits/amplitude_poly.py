@@ -22,18 +22,21 @@ class AmplitudePoly(AmplitudeBase):
   Amplitude control with polynomial dependency over time.
   '''
 
-  def __init__(self, coeffs, dtype=numpy.float128):
+  def __init__(self, coeffs):
     '''
     Constructs polynomial amplitude control object.
 
     Parameters
     coeffs : tuple
       Polynomial coefficients
-    dtype : object, optional
-      Numpy type for sample computations.
     '''
-    super(AmplitudePoly, self).__init__(dtype)
-    self.coeffs = coeffs
+    super(AmplitudePoly, self).__init__()
+
+    self.coeffs = (x for x in coeffs)
+    if len(coeffs) > 0:
+      self.poly = numpy.poly1d(coeffs)
+    else:
+      self.poly = None
 
   def __str__(self):
     '''
@@ -44,7 +47,7 @@ class AmplitudePoly(AmplitudeBase):
     string
       Literal presentation of object
     '''
-    return "AmplitudePoly(c={}, dtype={})".format(self.coeffs, self.dtype)
+    return "AmplitudePoly(c={})".format(self.coeffs)
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''
@@ -62,15 +65,10 @@ class AmplitudePoly(AmplitudeBase):
     numpy.ndarray
       Array with output samples
     '''
-    coeffs = self.coeffs
-    n_coeffs = len(coeffs)
 
-    if n_coeffs > 0:
-      ampAll = numpy.ndarray(len(signal), dtype=self.dtype)
-      ampAll.fill(coeffs[0])
-      for i in range(1, n_coeffs):
-        ampAll *= userTimeAll_s
-        ampAll += coeffs[i]
-      return numpy.multiply(signal, ampAll, out=signal)
-    else:
-      return signal
+    poly = self.poly
+    if poly is not None:
+      amplitudeVector = poly(userTimeAll_s)
+      signal *= amplitudeVector
+
+    return signal
