@@ -67,7 +67,7 @@ class BandTwoBitsEncoder(Encoder):
                                   bins=10,
                                   density=True)
     acc = 0.
-    totalPowerLimit = totalPower * 0.6
+    totalPowerLimit = totalPower * 0.67
     powerLimit = 0.
     for i in range(10):
       # Approximate power of samples in the bin
@@ -79,8 +79,8 @@ class BandTwoBitsEncoder(Encoder):
         acc += entryPower
 
     # Signal sign
-    signs = numpy.greater(numpy.sign(band_samples), 0)
-    amps = numpy.greater_equal(power, powerLimit)
+    signs = band_samples > 0
+    amps = power >= powerLimit
 
     return signs, amps
 
@@ -106,23 +106,12 @@ class BandTwoBitsEncoder(Encoder):
 
     self.ensureExtraCapacity(n_samples * 2)
 
-    n_bits = self.n_bits
     bits = self.bits
-
-    for i in range(n_samples):
-      if signs[i]:
-        sign_bit = 1
-      else:
-        sign_bit = 0
-      if amps[i]:
-        amp_bit = 1
-      else:
-        amp_bit = 0
-      bits[n_bits] = sign_bit
-      bits[n_bits + 1] = amp_bit
-      n_bits += 2
-
-    self.n_bits = n_bits
+    start = self.n_bits
+    end = self.bits + n_samples * 2
+    bits[start + 0:end:2] = signs
+    bits[start + 1:end:2] = amps
+    self.n_bits = end
 
     if (self.n_bits >= Encoder.BLOCK_SIZE):
       return self.encodeValues()

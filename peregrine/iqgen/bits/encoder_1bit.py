@@ -50,30 +50,12 @@ class BandBitEncoder(Encoder):
     n_samples = len(band_samples)
 
     self.ensureExtraCapacity(n_samples)
-
-    self.bits[self.n_bits:self.n_bits + n_samples] = [self.getBit(x) for x in band_samples]
-    self.n_bits += n_samples
+    start = self.n_bits
+    end = start + n_samples
+    self.bits[start:end] = band_samples < 0
+    self.n_bits = end
 
     if (self.n_bits >= Encoder.BLOCK_SIZE):
       return self.encodeValues()
 
     return Encoder.EMPTY_RESULT
-
-  def getBit(self, value):
-    '''
-    Converts a signed sample value into a bit value.
-
-    Parameters
-    ----------
-    value : float
-      Sample value
-
-    Returns
-    -------
-    int
-      Bit value: 0 if the value is positive, 1 otherwise
-    '''
-    if (value > 0):
-      return 0
-    else:
-      return 1

@@ -78,23 +78,17 @@ class GPSL1L2BitEncoder(Encoder):
     ndarray
       Array of type uint8 containing the encoded data.
     '''
-    band1_samples = sample_array[self.l1Index]
-    band2_samples = sample_array[self.l2Index]
-    n_samples = len(band1_samples)
+    band1_bits = sample_array[self.l1Index] < 0
+    band2_bits = sample_array[self.l2Index] < 0
+    n_samples = len(band1_bits)
 
     self.ensureExtraCapacity(n_samples * 2)
+    start = self.n_bits
+    end = start + 2 * n_samples
 
-    def combined():
-      try:
-        it1 = iter(band1_samples)
-        it2 = iter(band2_samples)
-        yield next(it1)
-        yield next(it2)
-      except StopIteration:
-        return
-
-    self.bits[self.n_bits:self.n_bits + n_samples * 2 ] = [self.getBit(x) for x in combined()]
-    self.n_bits += n_samples + n_samples
+    self.bits[start + 0:end:2] = band1_bits
+    self.bits[start + 1:end:2] = band2_bits
+    self.n_bits = end
 
     if (self.n_bits >= Encoder.BLOCK_SIZE):
       return self.encodeValues()
@@ -172,33 +166,14 @@ class GPSL1L2TwoBitsEncoder(Encoder):
 
     self.ensureExtraCapacity(n_samples * 4)
 
-    n_bits = self.n_bits
     bits = self.bits
-
-    for i in range(n_samples):
-      if signs1[i]:
-        sign_bit1 = 1
-      else:
-        sign_bit1 = 0
-      if amps1[i]:
-        amp_bit1 = 1
-      else:
-        amp_bit1 = 0
-      if signs2[i]:
-        sign_bit2 = 1
-      else:
-        sign_bit2 = 0
-      if amps2[i]:
-        amp_bit2 = 1
-      else:
-        amp_bit2 = 0
-      bits[n_bits + 0] = sign_bit1
-      bits[n_bits + 1] = amp_bit1
-      bits[n_bits + 2] = sign_bit2
-      bits[n_bits + 3] = amp_bit2
-      n_bits += 4
-
-    self.n_bits = n_bits
+    start = self.n_bits
+    end = start + 4 * n_samples
+    bits[start + 0:end:4] = signs1
+    bits[start + 1:end:4] = amps1
+    bits[start + 2:end:4] = signs2
+    bits[start + 3:end:4] = amps2
+    self.n_bits = end
 
     if (self.n_bits >= Encoder.BLOCK_SIZE):
       return self.encodeValues()
