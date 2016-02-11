@@ -14,15 +14,22 @@ related to parameter processing.
 """
 import time
 import argparse
+import scipy.constants
+
 from peregrine.iqgen.satellite import GPS_SV
+
+# Doppler objects
 from peregrine.iqgen.bits.doppler_const import constDoppler
 from peregrine.iqgen.bits.doppler_linear import linearDoppler
 from peregrine.iqgen.bits.doppler_zero import Doppler as Stationary
 from peregrine.iqgen.bits.doppler_sine import sineDoppler
 
+# Amplitude objects
+from peregrine.iqgen.bits.amplitude_poly import AmplitudePoly
+from peregrine.iqgen.bits.amplitude_sine import AmplitudeSine
+
 # from signals import GPS, GPS_L2C_Signal, GPS_L1CA_Signal
 import peregrine.iqgen.bits.signals as signals
-import scipy.constants
 
 from peregrine.iqgen.if_iface import LowRateConfig
 from peregrine.iqgen.if_iface import NormalRateConfig
@@ -105,6 +112,10 @@ def prepareArgsParser():
       namespace.amplitude = 1.
       namespace.doppler_amplitude = 0.
       namespace.doppler_period = 1.
+      namespace.amplitude_value0 = None
+      namespace.amplitude_value1 = None
+      namespace.amplitude_value2 = None
+      namespace.amplitude_period = None
 
   class UpdateSv(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -176,6 +187,37 @@ def prepareArgsParser():
       else:
         raise ValueError("Unsupported doppler type")
 
+  class UpdateAmplitudeType(UpdateSv):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateAmplitudeType, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      if namespace.amplitude_type == "poly":
+        coeffs = []
+        if namespace.amplitude_value0 is not None:
+          coeffs.append(namespace.amplitude_value0)
+          if namespace.amplitude_value1 is not None:
+            coeffs.append(namespace.amplitude_value1)
+            if namespace.amplitude_value2 is not None:
+              coeffs.append(namespace.amplitude_value2)
+        else:
+          coeffs.append(1.)
+        amplitude = AmplitudePoly(tuple(coeffs))
+      elif namespace.amplitude_type == "sine":
+        if namespace.amplitude_value0 is None:
+          namespace.amplitude_value0 = 1.
+        if namespace.amplitude_value1 is None:
+          namespace.amplitude_value1 = 0.5
+        if namespace.amplitude_period is None:
+          namespace.amplitude_period = 0.5
+
+        amplitude = AmplitudeSine(namespace.amplitude_value0,
+                                  namespace.amplitude_value1,
+                                  namespace.amplitude_period)
+      else:
+        raise ValueError("Unsupported amplitude type")
+      sv.setAmplitude(amplitude)
+
   class UpdateMessageType(UpdateSv):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateMessageType, self).__init__(option_strings, dest, **kwargs)
@@ -208,13 +250,6 @@ def prepareArgsParser():
 
       sv.setL1CAMessage(message)
       sv.setL2CMessage(message)
-
-  class UpdateAmplitude(UpdateSv):
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-      super(UpdateAmplitude, self).__init__(option_strings, dest, **kwargs)
-
-    def doUpdate(self, sv, parser, namespace, values, option_string):
-      sv.setAmplitude(namespace.amplitude)
 
   parser = argparse.ArgumentParser(description="Signal generator", usage='%(prog)s [options]')
   parser.add_argument('--gps-sv',
@@ -254,6 +289,27 @@ def prepareArgsParser():
                       type=float,
                       help="Doppler change period (seconds)",
                       action=UpdateDopplerType)
+  parser.add_argument('--amplitude-type',
+                      default="poly",
+                      choices=["poly", "sine"],
+                      help="Configure amplitude type",
+                      action=UpdateAmplitudeType)
+  parser.add_argument('--amplitude-value0',
+                      type=float,
+                      help="Amplitude coefficient A0",
+                      action=UpdateAmplitudeType)
+  parser.add_argument('--amplitude-value1',
+                      type=float,
+                      help="Amplitude coefficient A1",
+                      action=UpdateAmplitudeType)
+  parser.add_argument('--amplitude-value2',
+                      type=float,
+                      help="Amplitude coefficient A3",
+                      action=UpdateAmplitudeType)
+  parser.add_argument('--amplitude-period',
+                      type=float,
+                      help="Amplitude period",
+                      action=UpdateAmplitudeType)
   parser.add_argument('--message-type', default="zero",
                       choices=["zero", "one", "zero+one"],
                       help="Message type",
@@ -262,10 +318,6 @@ def prepareArgsParser():
                       type=argparse.FileType('rb'),
                       help="Source file for message contents.",
                       action=UpdateMessageFile)
-  parser.add_argument('--amplitude',
-                      type=float,
-                      default=1.,
-                      help="Amplitude")
   parser.add_argument('--symbol_delay',
                       type=int,
                       help="Initial symbol index")

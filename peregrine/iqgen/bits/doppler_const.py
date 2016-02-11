@@ -185,7 +185,12 @@ class Doppler(DopplerBase):
 
     # Convert phase to signal value and multiply by amplitude
     scipy.cos(signal, signal)
-    scipy.multiply(signal, amplitude, signal)
+    svTimeAll_s = scipy.linspace(svTime0_s,
+                                 svTimeX_s,
+                                 n_samples,
+                                 dtype=self.dtype,
+                                 endpoint=False)
+    amplitude.applyAmplitude(signal, svTimeAll_s)
 
     # PRN and data index computation
     chip0_idx = svTime0_s * carrierSignal.CODE_CHIP_RATE_HZ

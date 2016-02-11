@@ -163,7 +163,7 @@ class Doppler(DopplerBase):
       Observer's time in seconds of the beginning of the interval.
     n_samples : int
       Number of samples to generate
-    amplitude : float
+    amplitude : object
       Signal amplitude.
     carrierSignal : object
       Carrier frequency object
@@ -236,7 +236,7 @@ class Doppler(DopplerBase):
 
     # Convert phase to signal value and multiply by amplitude
     signal = scipy.cos(phaseAll)
-    signal *= amplitude
+    amplitude.applyAmplitude(signal, userTimeAll_s)
 
     # PRN and data index computation
     # Computing doppler coefficients

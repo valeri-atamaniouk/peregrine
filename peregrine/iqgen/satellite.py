@@ -7,6 +7,7 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+from peregrine.iqgen.bits.amplitude_poly import AmplitudePoly
 """
 The :mod:`peregrine.iqgen.satellite` module contains classes and functions
 related to satellite configuration.
@@ -79,7 +80,7 @@ class GPS_SV(SV):
     self.l2cMessage = DEFAULT_MESSAGE
     self.time0S = 0.
     self.pr0M = 0.
-    self.amplitude = 1.
+    self.amplitude = AmplitudePoly(())
     self.phaseShift = 0.
 
   def setAmplitude(self, amplitude):

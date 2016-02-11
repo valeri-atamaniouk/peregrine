@@ -38,7 +38,7 @@ class Doppler(DopplerBase):
     string
       Literal presentation of object
     '''
-    return "ZeroDoppler(distance0_m={}".format(self.distance0_m)
+    return "Doppler(distance0_m={})".format(self.distance0_m)
 
   def __repr__(self):
     '''
@@ -167,7 +167,12 @@ class Doppler(DopplerBase):
 
     # carrierAll = amplitude * scipy.sin(signal)
     scipy.cos(signal, signal)
-    signal *= amplitude
+    svTimeAll_s = scipy.linspace(svTime0_s,
+                                 svTimeX_s,
+                                 n_samples,
+                                 dtype=self.dtype,
+                                 endpoint=False)
+    amplitude.applyAmplitude(signal, svTimeAll_s)
 
     chip0_idx = svTime0_s * carrierSignal.CODE_CHIP_RATE_HZ
     chipX_idx = svTimeX_s * carrierSignal.CODE_CHIP_RATE_HZ

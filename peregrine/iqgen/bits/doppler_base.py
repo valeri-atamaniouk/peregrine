@@ -108,7 +108,7 @@ class DopplerBase(object):
     n_samples : int
       Number of samples to generate
     amplitude : float
-      Signal amplitude.
+      Signal amplitude object.
     carrierSignal : object
       Carrier frequency object
     ifFrequency_hz: float

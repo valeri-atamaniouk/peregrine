@@ -149,7 +149,7 @@ class Doppler(DopplerBase):
       Observer's time in seconds of the beginning of the interval.
     n_samples : int
       Number of samples to generate
-    amplitude : float
+    amplitude : object
       Signal amplitude.
     carrierSignal : object
       Carrier frequency object
@@ -195,13 +195,14 @@ class Doppler(DopplerBase):
 
     # print "D_0=", D_0, "D_1=", D_1, "D_2=", D_2, "D_3=", D_3
     # print "User time", userTimeAll_s
+    userTimeAll_s = scipy.linspace(userTime0_s,
+                                   userTimeX_s,
+                                   n_samples,
+                                   dtype=self.dtype,
+                                   endpoint=False)
+
     algMode = 2
     if algMode == 1:
-      userTimeAll_s = scipy.linspace(userTime0_s,
-                                     userTimeX_s,
-                                     n_samples,
-                                     dtype=self.dtype,
-                                     endpoint=False)
       phaseAll = scipy.linspace(D_2 * userTime0_s,
                                 D_2 * userTimeX_s,
                                 n_samples,
@@ -236,7 +237,7 @@ class Doppler(DopplerBase):
 
     # Convert phase to signal value and multiply by amplitude
     signal = scipy.cos(phaseAll)
-    signal *= amplitude
+    amplitude.applyAmplitude(signal, userTimeAll_s)
 
     # PRN and data index computation
     # Computing doppler coefficients
