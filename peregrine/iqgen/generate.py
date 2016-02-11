@@ -127,6 +127,7 @@ def generateSamples(outputFile,
   sigs = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
 
   deltaUserTime_s = computeTimeIntervalS(outputConfig)
+  totalSampleCounter = 0l
 
   for _s in range(0l, nSamples, outputConfig.SAMPLE_BATCH_SIZE):
 
@@ -164,25 +165,41 @@ def generateSamples(outputFile,
                                    outputConfig.SAMPLE_BATCH_SIZE,
                                    endpoint=False)
 
+    if debugLog:
+      debugData = []
 
     # Sum up signals for all SVs
     for svIdx in range(len(sv_list)):
       sv = sv_list[svIdx]
-
       # Add signal from satellite to signal accumulator
       t = sv.getBatchSignals(userTimeAll_s,
                              sigs,
                              outputConfig)
-
       # Debugging output
       if debugLog:
-        sv_sigs = t[0]
-        dopplers = t[1]
-        idxs = t[2]
-        codess = t[3]
-        for smpl in range(outputConfig.SAMPLE_BATCH_SIZE):
-          pass
-          # _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
+        debugData.append(t)
+      t = None
+
+    if debugLog:
+      # Data from all satellites is collected. Now we can dump the debug matrix
+      for smpl_idx in range(len(userTimeAll_s)):
+        _out_txt.write("{},{},".format(totalSampleCounter,
+                                       userTimeAll_s[smpl_idx]))
+        for svIdx in range(len(sv_list)):
+          sv = sv_list[svIdx]
+          sv_bands = debugData[svIdx]
+          for band in sv_bands:
+            sv_sigs = band[0]
+            doppler = band[1]
+            idx = band[2]
+            codes = band[3]
+            _out_txt.write("{},{},{},{}".format(sv_sigs[smpl_idx],
+                                                doppler[smpl_idx],
+                                                idx[smpl_idx],
+                                                codes[smpl_idx]))
+        # End of line
+        _out_txt.write("\n")
+      _out_txt.flush()  # Flush the batch data into file
 
     if lowPass:
       # Filter signal values through LPF (IIR Chebyshev type 2)
