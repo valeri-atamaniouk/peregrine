@@ -37,22 +37,15 @@ class Doppler(DopplerBase):
       C_n..C_0 - values for speed of light
     '''
     super(Doppler, self).__init__()
-    self.coeffs = coeffs
+    self.coeffs = tuple([x for x in coeffs])
     self.n_coeffs = len(coeffs)
     self.speedPoly = None
     self.distancePoly = None
-    self.calcPoly = None
     self.twoPi = scipy.constants.pi * 2
     if self.n_coeffs > 0:
       self.distancePoly = numpy.poly1d(coeffs)
       if self.n_coeffs > 1:
         self.speedPoly = numpy.poly1d(coeffs[:-1])
-        if (self.n_coeffs > 2):
-          tmp = [x for x in coeffs[:-2]]
-          tmp.append(0.)
-          self.calcPoly = numpy.poly1d(tmp)
-    # print "Dist", self.distancePoly
-    # print "Speed", self.speedPoly
 
   def __str__(self):
     '''
@@ -157,7 +150,7 @@ class Doppler(DopplerBase):
     if algMode == 1:
       doppler = numpy.ndarray(n_samples, dtype=self.dtype)
       coeffs = self.coeffs
-      n_coeffs = len(coeffs)
+      n_coeffs = self.n_coeffs
       if n_coeffs > 2:
         # Linear doppler acceleration and further higher-order changes
         # Compute phase accumulator for all orders except 1.
@@ -226,7 +219,7 @@ class Doppler(DopplerBase):
                                         message,
                                         code)
     scipy.multiply(signal, chips, signal)
-    return (signal, chipAll_idx, chips)
+    return (signal, doppler, chipAll_idx, chips)
 
 def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
   '''

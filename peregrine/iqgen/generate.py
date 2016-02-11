@@ -33,7 +33,8 @@ def computeTimeIntervalS(outputConfig):
   float
     Generation interval duration in seconds
   '''
-  deltaTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / outputConfig.SAMPLE_RATE_HZ
+  deltaTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / \
+                outputConfig.SAMPLE_RATE_HZ
   return deltaTime_s
 
 
@@ -115,13 +116,12 @@ def generateSamples(outputFile,
   else:
     Nsigma = None
 
-  if (lowPass):
-    lpf = [LowPassFilter() for _ in range(4)]
+  if lowPass:
+    lpf = (LowPassFilter() for _ in range(4))
 
-  if (debugLog): _out_txt = open("out.txt", "wt");
+  if debugLog: _out_txt = open("out.txt", "wt");
 
   userTime_s = float(time0S)
-  deltaUserTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / outputConfig.SAMPLE_RATE_HZ
   oldPerformanceCounter = 0
 
   sigs = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
@@ -177,10 +177,12 @@ def generateSamples(outputFile,
       # Debugging output
       if debugLog:
         sv_sigs = t[0]
-        idx = t[2]
-        codes = t[3]
+        dopplers = t[1]
+        idxs = t[2]
+        codess = t[3]
         for smpl in range(outputConfig.SAMPLE_BATCH_SIZE):
-          _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
+          pass
+          # _out_txt.write("{},{},{}\n".format(sv_sigs[smpl], idx[smpl], codes[smpl]))
 
     if lowPass:
       # Filter signal values through LPF (IIR Chebyshev type 2)

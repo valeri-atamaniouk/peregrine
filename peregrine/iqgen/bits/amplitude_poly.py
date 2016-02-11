@@ -32,7 +32,7 @@ class AmplitudePoly(AmplitudeBase):
     '''
     super(AmplitudePoly, self).__init__()
 
-    self.coeffs = (x for x in coeffs)
+    self.coeffs = tuple([x for x in coeffs])
     if len(coeffs) > 0:
       self.poly = numpy.poly1d(coeffs)
     else:

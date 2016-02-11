@@ -198,11 +198,11 @@ class Doppler(DopplerBase):
       phaseAll += (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi * userTimeAll_s
       phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
-      phaseAll = D_2 * userTimeAll_s
-      numpy.cos(phaseAll, out=phaseAll)
-      phaseAll -= 1.
-      chipAll_idx = numpy.copy(phaseAll)
-      phaseAll *= -D_1 * 2. * scipy.constants.pi
+      doppler = D_2 * userTimeAll_s
+      numpy.cos(doppler, out=doppler)
+      doppler -= 1.
+      chipAll_idx = numpy.copy(doppler)
+      phaseAll = (-D_1 * 2. * scipy.constants.pi) * doppler
       C = (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi
       C2 = 2 * scipy.constants.pi * D_3
       phaseAll += C * userTimeAll_s
@@ -241,7 +241,7 @@ class Doppler(DopplerBase):
 
     chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
-    return (signal, chipAll_idx, chips)
+    return (signal, doppler, chipAll_idx, chips)
 
 def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dopplerPeriod_s):
   '''

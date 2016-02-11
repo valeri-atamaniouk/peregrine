@@ -156,7 +156,7 @@ class GPS_SV(SV):
     list
       Debug information
     '''
-    values = []
+    result = [[], [], [], []]
     if (self.l1caEnabled):
       intermediateFrequency_hz = outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
       frequencyIndex = outputConfig.GPS.L1.INDEX
@@ -168,6 +168,10 @@ class GPS_SV(SV):
                                          self.l1caCode,
                                          outputConfig)
       numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
+      result[0].append(values[0])
+      result[1].append(values[1])
+      result[2].append(values[2])
+      result[3].append(values[3])
     if (self.l2cEnabled):
       intermediateFrequency_hz = outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
       frequencyIndex = outputConfig.GPS.L2.INDEX
@@ -179,7 +183,11 @@ class GPS_SV(SV):
                                          self.l2cCode,
                                          outputConfig)
       numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
-    return values
+      result[0].append(values[0])
+      result[1].append(values[1])
+      result[2].append(values[2])
+      result[3].append(values[3])
+    return result
 
   def isBandEnabled(self, bandIndex, outputConfig):
     '''
