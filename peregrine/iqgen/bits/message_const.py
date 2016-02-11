@@ -6,6 +6,7 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+import numpy
 
 """
 The :mod:`peregrine.iqgen.message_const` module contains classes and functions
@@ -27,20 +28,22 @@ class Message(object):
       Value for the bits. 1 for 0 bits, -1 for 1 bits.
     '''
     super(Message, self).__init__()
-    self.value = bitValue
+    self.binValue = 1 if bitValue < 0 else 0
 
-  def getBit(self, bitIndex):
+  def getDataBits(self, dataAll_idx):
     '''
-    Provides bit at a given index
+    Generates vector of data bits corresponding to input index
 
     Parameters
     ----------
-    bitIndex : long
-      Bit index
+    dataAll_idx : numpy.ndarray(dtype=numpy.int64)
+      Vector of bit indexes
 
     Returns
     -------
-    int
-      Bit value: 1 for bit 0 and -1 for bit 1
+    numpy.ndarray(dtype=numpy.uint8)
+      Vector of data bits
     '''
-    return self.value
+    result = numpy.ndarray(len(dataAll_idx), dtype=numpy.uint8)
+    result.fill(self.binValue)
+    return result

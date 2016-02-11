@@ -195,25 +195,8 @@ class DopplerBase(object):
     '''
 
     chipAll_long = chipAll_idx.astype(numpy.long)
-    n_chips = len(chipAll_idx)
-    result = numpy.ndarray(n_chips, dtype=numpy.int8)
-    prevChipIdx = DopplerBase.__startIndex
-    prevChip = None
-    prevDataIdx = DopplerBase.__startIndex
-    prevData = None
-    prevMult = None
-
-    for idx in range(n_chips):
-      chipIdx = chipAll_long[idx]
-      if chipIdx != prevChipIdx:
-        prevChipIdx = chipIdx
-        prevChip = code.getCodeBit(chipIdx)
-        dataIdx = chipIdx / carrierSignal.CHIP_TO_SYMBOL_DIVIDER
-        if dataIdx != prevDataIdx:
-          prevDataIdx = dataIdx
-          prevData = message.getBit(dataIdx)
-        prevMult = prevChip * prevData
-      result[idx] = prevMult
+    dataBits = message.getDataBits(chipAll_long / carrierSignal.CHIP_TO_SYMBOL_DIVIDER)
+    result = code.combineData(chipAll_long, dataBits)
 
     return result
 

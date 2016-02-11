@@ -13,6 +13,8 @@ related to GPS L2C PRN processing
 
 """
 
+import numpy
+
 from peregrine.include.generateL2CMcode import L2CMCodes
 
 class PrnCode(object):
@@ -111,30 +113,64 @@ class PrnCode(object):
     super(PrnCode, self).__init__()
     self.cl = PrnCode.CL_Code(prnNo)
     self.cm = PrnCode.CM_Code(prnNo)
+    self.bitLookup = numpy.asarray([1, -1], dtype=numpy.int8)
+    tmp = numpy.ndarray(PrnCode.CL_Code.CODE_LENGTH * 2, dtype=numpy.uint8)
+    for i in range(PrnCode.CL_Code.CODE_LENGTH * 2):
+      bit = self.__getCodeBit(i)
+      tmp[i] = 1 if bit < 0 else 0
+    self.binCode = tmp
+    self.prnNo = prnNo
 
-  def getCodeIndex(self, svTime_s):
+  def getCodeBits(self, chipIndex_all):
     '''
-    Computes code chip index for a given SV time.
-
     Parameters
     ----------
-    svTime_s : float
-      SV time in seconds
+    chipIndex_all : numpy.ndarray(dtype=numpy.long)
+      Vector of chip indexes
 
     Returns
     -------
-    long
-      code chip index
+    numpy.ndarray(dtype=numpy.uint8)
+      Vector of code chip bits
     '''
+    # numpy.take degrades performance a lot over time.
+    # return numpy.take(self.binCode, chipIndex_all, mode='wrap')
+    return self.binCode[chipIndex_all % PrnCode.CODE_LENGTH]
 
-    return long(svTime_s * self.CODE_FREQUENCY_HZ)
+  def combineData(self, chipIndex_all, dataBits):
+    '''
+    Mixes in code chip and data
 
-  def getCodeBit(self, codeBitIndex):
+    Parameters
+    ----------
+    chipIndex_all : numpy.ndarray(dtype=numpy.long)
+      Chip indexes
+    dataBits : numpy.ndarray(dtype=numpy.uint8)
+      Data bits
+
+    Returns
+    -------
+    numpy.ndarray(dtype=numpy.int8)
+      Vector of data bits modulated by chips
+    '''
+    chipBits = self.getCodeBits(chipIndex_all)
+    tmp = dataBits.copy()
+    if chipIndex_all[0] & 1:
+      tmp[::2] = 0
+    else:
+      tmp[1::2] = 0
+    combined = numpy.bitwise_xor(chipBits, tmp)
+    # numpy.take degrades performance a lot over time.
+    # result = numpy.take(self.bitLookup, combined)
+    result = self.bitLookup[combined]
+    return result
+
+  def __getCodeBit(self, codeBitIndex):
     '''
     For GPS L2C code bits are taken from CM and CL codes in turn.
     '''
     idx = long(codeBitIndex)
-    if (idx & 1 != 0):
+    if idx & 1 != 0:
       return self.cl.getCodeBit(idx / 2)
     else:
       return self.cm.getCodeBit(idx / 2)

@@ -6,6 +6,7 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+import numpy
 
 """
 The :mod:`peregrine.iqgen.prn_gps_l1ca` module contains classes and functions
@@ -35,36 +36,48 @@ class PrnCode(object):
     '''
     super(PrnCode, self).__init__()
     self.caCode = caCodes[prnNo - 1][:]
+    tmp = numpy.asarray(self.caCode, dtype=numpy.int8)
+    tmp -= 1
+    tmp /= -2
+    self.binCode = tmp
     self.prnNo = prnNo
+    self.bitLookup = numpy.asarray([1, -1], dtype=numpy.int8)
 
-  def getCodeBit(self, chipIndex):
+  def getCodeBits(self, chipIndex_all):
     '''
-    Returns chip value by index.
-
     Parameters
     ----------
-    chipIndex : long
-      Chip index
+    chipIndex_all : numpy.ndarray(dtype=numpy.long)
+      Vector of chip indexes
 
     Returns
     -------
-    int
-      Chip value by index
+    numpy.ndarray(dtype=numpy.uint8)
+      Vector of code chip bits
     '''
-    return self.caCode[chipIndex % self.CODE_LENGTH]
+    # numpy.take degrades performance a lot over time.
+    # return numpy.take(self.binCode, chipIndex_all, mode='wrap')
+    return self.binCode[chipIndex_all % len(self.binCode)]
 
-  def getCodeIndex(self, svTime_s):
+  def combineData(self, chipIndex_all, dataBits):
     '''
-    Computes code chip index for a given SV time.
+    Mixes in code chip and data
 
     Parameters
     ----------
-    svTime_s : float
-      SV time in seconds
+    chipIndex_all : numpy.ndarray(dtype=numpy.long)
+      Chip indexes
+    dataBits : numpy.ndarray(dtype=numpy.uint8)
+      Data bits
 
     Returns
     -------
-    long
-      code chip index
+    numpy.ndarray(dtype=numpy.int8)
+      Vector of data bits modulated by chips
     '''
-    return long(svTime_s * self.CODE_FREQUENCY_HZ)
+    chipBits = self.getCodeBits(chipIndex_all)
+    combined = numpy.bitwise_xor(chipBits, dataBits)
+    # numpy.take degrades performance a lot over time.
+    # result = numpy.take(self.bitLookup, combined)
+    result = self.bitLookup[combined]
+    return result

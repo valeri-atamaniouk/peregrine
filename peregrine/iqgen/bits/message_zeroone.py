@@ -13,6 +13,8 @@ related to symbol contents that flips the value every other bit.
 
 """
 
+import numpy
+
 class Message(object):
   '''
   Message that contains zeros and ones
@@ -22,22 +24,22 @@ class Message(object):
     Constructs object.
     '''
     super(Message, self).__init__()
+    self.bits = numpy.asarray([0, 1], dtype=numpy.uint8)
 
-  def getBit(self, bitIndex):
+  def getDataBits(self, dataAll_idx):
     '''
-    Provides bit at a given index
+    Generates vector of data bits corresponding to input index
 
     Parameters
     ----------
-    bitIndex : long
-      Bit index
+    dataAll_idx : numpy.ndarray(dtype=numpy.int64)
+      Vector of bit indexes
 
     Returns
     -------
-    int
-      Bit value: 1 for bit 0 and -1 for bit 1
+    numpy.ndarray(dtype=numpy.uint8)
+      Vector of data bits
     '''
-    if (bitIndex & 1 != 0):
-      return -1
-    else:
-      return 1
+    # numpy.take degrades performance a lot over time.
+    # return numpy.take(self.bits, dataAll_idx , mode='wrap')
+    return self.bits[dataAll_idx & 1]
