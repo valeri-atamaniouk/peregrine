@@ -84,7 +84,7 @@ def generateSamples(outputFile,
   for _sv in sv_list:
     _svNo = _sv.getSvName()
     _amp = _sv.amplitude
-    _svTime0_s = 0  # _sv.doppler.computeSvTimeS(time0S)
+    _svTime0_s = 0
     _dist0_m = _sv.doppler.computeDistanceM(_svTime0_s)
     _speed_mps = _sv.doppler.computeSpeedMps(_svTime0_s)
     _bit = signals.GPS.L1CA.getSymbolIndex(_svTime0_s)
@@ -116,8 +116,17 @@ def generateSamples(outputFile,
   else:
     Nsigma = None
 
-  if lowPass:
-    lpf = (LowPassFilter() for _ in range(4))
+  # Check which bands are enabled, configure band-specific parameters
+  bands = [outputConfig.GPS.L1, outputConfig.GPS.L2]  # Supported bands
+  lpf = [None] * len(bands)
+  bandsEnabled = [False] * len(bands)
+
+  for band in bands:
+    for sv in sv_list:
+      bandsEnabled[band.INDEX] |= sv.isBandEnabled(band.INDEX, outputConfig)
+    if lowPass:
+      lpf[band.INDEX] = LowPassFilter(outputConfig,
+                                      band.INTERMEDIATE_FREQUENCY_HZ)
 
   if debugLog: _out_txt = open("out.txt", "wt");
 
@@ -202,14 +211,13 @@ def generateSamples(outputFile,
       _out_txt.flush()  # Flush the batch data into file
 
     if lowPass:
-      # Filter signal values through LPF (IIR Chebyshev type 2)
-      for i in range(4):
-        sigs[i][:] = lpf[i].filter(sigs[i])
+      # Filter signal values through LPF, BPF or another
+      for i in range(len(lpf)):
+        filterObject = lpf[i]
+        if filterObject is not None:
+          sigs[i][:] = filterObject.filter(sigs[i])
 
-    # for s in sv_sigs:
-      # signal_array[Chip.GPS.L1.INDEX] = s
-
-      # Feed data into encoder
+    # Feed data into encoder
     _bytes = encoder.addSamples(sigs)
 
     if (len(_bytes) > 0):

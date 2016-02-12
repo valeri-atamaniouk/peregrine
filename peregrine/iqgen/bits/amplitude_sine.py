@@ -20,7 +20,7 @@ import scipy.constants
 
 class AmplitudeSine(AmplitudeBase):
   '''
-  Amplitude control with polynomial dependency over time.
+  Amplitude control with sine modulation over time.
   '''
 
   def __init__(self, initial, amplitude, period_s):
@@ -55,14 +55,15 @@ class AmplitudeSine(AmplitudeBase):
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''
-    Applies amplutude modulation to signal
+    Applies amplitude modulation to signal.
 
     Parameters
     ----------
     signal : numpy.ndarray
-      Array with input samples
+      Signal sample vector. Each element defines signal amplitude in range
+      [-1; +1]. This vector is modified in place.
     userTimeAll_s : numpy.ndarray
-      Array with input samples. This array is modified in place.
+      Sample time vector. Each element defines sample time in seconds.
 
     Returns
     -------

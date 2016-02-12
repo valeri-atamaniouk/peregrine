@@ -18,13 +18,13 @@ import scipy.constants
 from peregrine.iqgen.bits.doppler_base import DopplerBase
 
 class Doppler(DopplerBase):
-
-  NAME = "PolyDoppler"
-
   '''
   Doppler control for an object that has constant acceleration. Such signal has
   constant doppler value with a possible sign invert.
   '''
+
+  TWO_PI = scipy.constants.pi * 2
+
   def __init__(self, coeffs):
     '''
     Constructs doppler control object for linear acceleration.
@@ -41,7 +41,6 @@ class Doppler(DopplerBase):
     self.n_coeffs = len(coeffs)
     self.speedPoly = None
     self.distancePoly = None
-    self.twoPi = scipy.constants.pi * 2
     if self.n_coeffs > 0:
       self.distancePoly = numpy.poly1d(coeffs)
       if self.n_coeffs > 1:
@@ -60,7 +59,7 @@ class Doppler(DopplerBase):
 
   def computeDistanceM(self, svTime_s):
     '''
-    Computes distance to satellite in meters.
+    Computes doppler shift in meters.
 
     Parameters
     ----------
@@ -81,7 +80,7 @@ class Doppler(DopplerBase):
 
   def computeSpeedMps(self, svTime_s):
     '''
-    Computes speed of satellite in meters per second.
+    Computes speed along the vector to satellite in meters per second.
 
     Parameters
     ----------
@@ -144,7 +143,6 @@ class Doppler(DopplerBase):
 
     # Computing doppler coefficients
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
-    twoPi = self.twoPi
 
     algMode = 1
     if algMode == 1:
@@ -183,7 +181,7 @@ class Doppler(DopplerBase):
       phaseAll += (ifFrequency_hz + d_1 * freqRatio)
       phaseAll *= userTimeAll_s
       phaseAll += d_0 * freqRatio
-      phaseAll *= twoPi
+      phaseAll *= Doppler.TWO_PI
     elif algMode == 2:
       # Simple computation using polynomial function.
       distancePoly = self.distancePoly
@@ -194,8 +192,8 @@ class Doppler(DopplerBase):
         doppler.fill(0)
 
       # Phase vector now contains everything except the frequency and d_1
-      phaseAll = doppler * (freqRatio * twoPi)
-      phaseAll += (twoPi * ifFrequency_hz) * userTimeAll_s
+      phaseAll = doppler * (freqRatio * Doppler.TWO_PI)
+      phaseAll += (Doppler.TWO_PI * ifFrequency_hz) * userTimeAll_s
 
     # Convert phase to signal value and multiply by amplitude
     signal = scipy.cos(phaseAll)

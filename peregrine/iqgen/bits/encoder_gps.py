@@ -75,11 +75,11 @@ class GPSL1L2BitEncoder(Encoder):
 
     Returns
     -------
-    ndarray
+    numpy.ndarray(dtype=numpy.uint8)
       Array of type uint8 containing the encoded data.
     '''
-    band1_bits = sample_array[self.l1Index] < 0
-    band2_bits = sample_array[self.l2Index] < 0
+    band1_bits = BandBitEncoder.convertBand(sample_array[self.l1Index])
+    band2_bits = BandBitEncoder.convertBand(sample_array[self.l2Index])
     n_samples = len(band1_bits)
 
     self.ensureExtraCapacity(n_samples * 2)
@@ -153,7 +153,7 @@ class GPSL1L2TwoBitsEncoder(Encoder):
 
     Returns
     -------
-    ndarray
+    numpy.ndarray(dtype=numpy.uint8)
       Array of type uint8 containing the encoded data.
     '''
     band1_samples = sample_array[self.l1Index]

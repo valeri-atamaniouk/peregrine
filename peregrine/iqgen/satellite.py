@@ -54,6 +54,12 @@ class SV(object):
     '''
     return self.svName
 
+  def __str__(self):
+    return self.getSvName()
+
+  def __repr__(self):
+    return self.getSvName()
+
 DEFAULT_MESSAGE = Message(1)
 
 class GPS_SV(SV):

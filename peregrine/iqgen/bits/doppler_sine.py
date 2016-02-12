@@ -17,13 +17,13 @@ from peregrine.iqgen.bits.doppler_base import DopplerBase
 import scipy.constants
 import numpy
 
+__two_pi = scipy.constants.pi * 2.
+
 class Doppler(DopplerBase):
-
-  NAME = "SineDoppler"
-
   '''
   Doppler control for an object that has peridic acceleration.
   '''
+
   def __init__(self, distance0_m, speed0_mps, amplutude_mps, period_s):
     '''
     Constructs doppler control object for linear acceleration.
@@ -45,7 +45,6 @@ class Doppler(DopplerBase):
     self.speed0_mps = speed0_mps
     self.amplutude_mps = amplutude_mps
     self.period_s = period_s
-    self.tau0_s = self.distance0_m / scipy.constants.c
 
   def __str__(self):
     '''
@@ -75,7 +74,7 @@ class Doppler(DopplerBase):
 
   def computeDistanceM(self, svTime_s):
     '''
-    Computes distance to satellite in meters.
+    Computes doppler shift in meters.
 
     Parameters
     ----------
@@ -89,11 +88,11 @@ class Doppler(DopplerBase):
       Distance to satellite in meters.
     '''
     return self.distance0_m + self.speed0_mps * svTime_s + \
-       self.amplutude_mps * (1 - numpy.cos(2 * scipy.constants.pi * svTime_s / self.period_s))
+       self.amplutude_mps * (1 - numpy.cos(__two_pi * svTime_s / self.period_s))
 
   def computeSpeedMps(self, svTime_s):
     '''
-    Computes speed of satellite in meters per second.
+    Computes speed along the vector to satellite in meters per second.
 
     Parameters
     ----------
@@ -106,30 +105,8 @@ class Doppler(DopplerBase):
     float
       Speed of satellite in meters per second.
     '''
-    return self.speed0_mps + self.amplutude_mps * numpy.sin(2 * scipy.constants.pi * svTime_s / self.period_s)
-
-  def computeSvTimeS(self, userTime_s):
-    '''
-    Computes SV time from a user time.
-
-    The computation is a solution of the formulae:
-    T_user = T_sv + D(T_sv)/c, for D(t) = D_0 + A*sin(T_sv/P)
-
-    Parameters
-    ----------
-    userTime_s : float
-      Observer's time in seconds
-
-    Returns
-    -------
-    float
-      Satellite vehicle's time at which signal has been generated.
-    '''
-
-    if userTime_s != 0:
-      raise ValueError()
-
-    return -self.distance0_m / scipy.constants.c
+    return self.speed0_mps + self.amplutude_mps * \
+           numpy.sin(__two_pi * svTime_s / self.period_s)
 
   def computeBatch(self,
                    userTimeAll_s,
@@ -181,12 +158,9 @@ class Doppler(DopplerBase):
 
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = self.speed0_mps * freqRatio
-    D_1 = self.amplutude_mps * freqRatio / (2 * scipy.constants.pi) * self.period_s
-    D_2 = 2. * scipy.constants.pi / self.period_s
+    D_1 = self.amplutude_mps * freqRatio / __two_pi * self.period_s
+    D_2 = __two_pi / self.period_s
     D_3 = self.distance0_m * freqRatio
-
-    # print "D_0=", D_0, "D_1=", D_1, "D_2=", D_2, "D_3=", D_3
-    # print "User time", userTimeAll_s
 
     algMode = 2
     if algMode == 1:
@@ -194,17 +168,17 @@ class Doppler(DopplerBase):
 
       numpy.cos(phaseAll, out=phaseAll)
       phaseAll -= 1.
-      phaseAll *= -D_1 * 2. * scipy.constants.pi
-      phaseAll += (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi * userTimeAll_s
+      phaseAll *= -D_1 * __two_pi
+      phaseAll += (D_0 + ifFrequency_hz) * __two_pi * userTimeAll_s
       phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
       doppler = D_2 * userTimeAll_s
       numpy.cos(doppler, out=doppler)
       doppler -= 1.
       chipAll_idx = numpy.copy(doppler)
-      phaseAll = (-D_1 * 2. * scipy.constants.pi) * doppler
-      C = (D_0 + ifFrequency_hz) * 2. * scipy.constants.pi
-      C2 = 2 * scipy.constants.pi * D_3
+      phaseAll = (-D_1 * __two_pi) * doppler
+      C = (D_0 + ifFrequency_hz) * __two_pi
+      C2 = __two_pi * D_3
       phaseAll += C * userTimeAll_s
       phaseAll += C2
       # phaseAll += 2 * scipy.constants.pi * D_3
@@ -265,7 +239,8 @@ def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dop
   Doppler
     object that implments constant acceleration logic.
   '''
-  speed0_mps = -scipy.constants.c / frequency_hz * doppler0_hz
-  amplitude_mps = -scipy.constants.c / frequency_hz * dopplerAmplitude_hz
+  dopplerCoeff = -scipy.constants.c / frequency_hz
+  speed0_mps = dopplerCoeff * doppler0_hz
+  amplitude_mps = dopplerCoeff * dopplerAmplitude_hz
 
   return Doppler(distance0_m, speed0_mps, amplitude_mps, dopplerPeriod_s)

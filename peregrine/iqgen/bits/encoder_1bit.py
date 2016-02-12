@@ -43,7 +43,7 @@ class BandBitEncoder(Encoder):
 
     Returns
     -------
-    ndarray
+    numpy.ndarray((N), dtype=numpy.uint8)
       Array of type uint8 containing the encoded data.
     '''
     band_samples = sample_array[self.bandIndex]
@@ -52,10 +52,29 @@ class BandBitEncoder(Encoder):
     self.ensureExtraCapacity(n_samples)
     start = self.n_bits
     end = start + n_samples
-    self.bits[start:end] = band_samples < 0
+    self.bits[start:end] = BandBitEncoder.convertBand(band_samples)
     self.n_bits = end
 
     if (self.n_bits >= Encoder.BLOCK_SIZE):
       return self.encodeValues()
 
     return Encoder.EMPTY_RESULT
+
+  @staticmethod
+  def convertBand(band_samples):
+    '''
+    Helper method for converting sampled signal band into output bits.
+
+    The samples are compared to 0. Positive values yield value of False.
+
+    Parameters
+    ----------
+    band_samples : numpy.ndarray((N))
+      Vector of signal samples
+
+    Returns
+    -------
+    signs : numpy.ndarray((N), dtype=numpy.bool)
+      Boolean vector of sample signs
+    '''
+    return band_samples < 0

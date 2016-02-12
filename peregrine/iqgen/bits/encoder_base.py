@@ -50,7 +50,7 @@ class Encoder(object):
 
     Returns
     -------
-    ndarray
+    numpy.ndarray(dtype=numpy.uint8)
       Array of type uint8 containing the encoded data.
     '''
     return Encoder.EMPTY_RESULT

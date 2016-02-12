@@ -42,42 +42,43 @@ class BandTwoBitsEncoder(Encoder):
     For the sign, the samples are compared to 0. Positive values yield sign of
     True.
 
-    The method builds a power histogram from sinal samples. After a histogram
-    is built, the 60% power boundary is located. All samples, whose power is
+    The method builds a power histogram from signal samples. After a histogram
+    is built, the 67% power boundary is located. All samples, whose power is
     lower, than the boundary, are reported as False.
 
     Parameters
     ----------
-    band_samples : ndarray
+    band_samples : numpy.ndarray
       Vector of signal samples
 
     Returns
     -------
-    signs : ndarray
-      Boolean vector of sample signs
-    amps : ndarray
-      Boolean vector of sample power
+    signs : numpy.ndarray(dtype=numpy.bool)
+      Boolean vector of sample signs: True for positive, False for negative
+    amps : numpy.ndarray(dtype=numpy.bool)
+      Boolean vector of sample power: True for high power, False for low power
     '''
 
     # Signal power is a square of the amplitude
     power = numpy.square(band_samples)
     totalPower = numpy.sum(power)
+    totalPowerLimit = totalPower * 0.67
 
-    # Build histrogram to find 60% power
+    # Build histrogram to find 67% power
     hist, edges = numpy.histogram(power,
                                   bins=10,
                                   density=True)
-    acc = 0.
-    totalPowerLimit = totalPower * 0.67
+    lastPower = 0.
     powerLimit = 0.
     for i in range(10):
       # Approximate power of samples in the bin
       entryPower = hist[i] * (edges[i] + edges[i + 1]) / 2.
-      if acc + entryPower > totalPowerLimit:
+      newPower = lastPower + entryPower
+      if newPower > totalPowerLimit:
         powerLimit = edges[i]
         break
       else:
-        acc += entryPower
+        lastPower = newPower
 
     # Signal sign
     signs = band_samples > 0
@@ -96,7 +97,7 @@ class BandTwoBitsEncoder(Encoder):
 
     Returns
     -------
-    ndarray
+    numpy.ndarray(dtype=numpy.uint8)
       Array of type uint8 containing the encoded data.
     '''
     band_samples = sample_array[self.bandIndex]

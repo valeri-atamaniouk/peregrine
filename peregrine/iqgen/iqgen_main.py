@@ -178,7 +178,6 @@ def prepareArgsParser():
       else:
         raise ValueError("Signal band must be specified before doppler")
 
-      print "Creating doppler: ", namespace.doppler_type
       if namespace.doppler_type == "zero":
         doppler = zeroDoppler(namespace.doppler_distance, frequency_hz)
       elif namespace.doppler_type == "const":
@@ -284,21 +283,18 @@ def prepareArgsParser():
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-value',
                       type=float,
-                      default=-10.,
                       help="Doppler shift in hertz (initial)",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-speed',
                       type=float,
-                      default=-10.,
                       help="Doppler shift change in hertz/second",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-distance',
                       type=float,
-                      help="Distance in meters (initial)",
+                      help="Distance in meters for doppler delay (initial)",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-amplitude',
                       type=float,
-                      default=-10.,
                       help="Doppler change amplitude (hertz)",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-period',
@@ -355,12 +351,12 @@ def prepareArgsParser():
                       default=False,
                       help="Enable debug output",
                       action='store_true')
-  parser.add_argument('--interval',
+  parser.add_argument('--generate',
                       type=float,
                       default=3.,
-                      help="Interval duration in seconds")
+                      help="Amount of data to generate, in seconds")
   parser.add_argument('--encoder',
-                      default="1bit",
+                      default="2bits",
                       choices=["1bit", "2bits"],
                       help="Output data format")
   parser.add_argument('--output',
@@ -377,8 +373,6 @@ def prepareArgsParser():
 def main():
   parser = prepareArgsParser()
   args = parser.parse_args()
-  for i in args.gps_sv:
-    print "SV", i.getSvName()
 
   if args.output is None:
     parser.print_help()
@@ -401,6 +395,8 @@ def main():
   print "\tBatch size:", outputConfig.SAMPLE_BATCH_SIZE
   print "\tGPS L1 IF:", outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
   print "\tGPS L2 IF:", outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
+
+  print "Satellites: ", args.gps_sv
 
   # Check which signals are enabled on each of satellite to select proper
   # output encoder
@@ -456,9 +452,9 @@ def main():
   print "Computed symbol/chip delay={} seconds".format(time0_s)
 
   startTime_s = time.clock()
-  n_samples = long(outputConfig.SAMPLE_RATE_HZ * args.interval)
+  n_samples = long(outputConfig.SAMPLE_RATE_HZ * args.generate)
 
-  print "Generating {} samples for {} seconds".format(n_samples, args.interval)
+  print "Generating {} samples for {} seconds".format(n_samples, args.generate)
 
   generateSamples(args.output,
                   args.gps_sv,

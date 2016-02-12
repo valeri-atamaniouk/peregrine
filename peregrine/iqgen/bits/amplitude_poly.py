@@ -27,7 +27,7 @@ class AmplitudePoly(AmplitudeBase):
     Constructs polynomial amplitude control object.
 
     Parameters
-    coeffs : tuple
+    coeffs : array-like
       Polynomial coefficients
     '''
     super(AmplitudePoly, self).__init__()
@@ -51,14 +51,17 @@ class AmplitudePoly(AmplitudeBase):
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''
-    Applies amplutude modulation to signal
+    Applies amplitude modulation to signal.
+
+    This method applies polynomial modulation.
 
     Parameters
     ----------
     signal : numpy.ndarray
-      Array with input samples
+      Signal sample vector. Each element defines signal amplitude in range
+      [-1; +1]. This vector is modified in place.
     userTimeAll_s : numpy.ndarray
-      Array with input samples. This array is modified in place.
+      Sample time vector. Each element defines sample time in seconds.
 
     Returns
     -------

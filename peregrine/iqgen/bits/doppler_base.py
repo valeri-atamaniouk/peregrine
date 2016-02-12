@@ -39,7 +39,7 @@ class DopplerBase(object):
 
   def computeDistanceM(self, svTime_s):
     '''
-    Computes distance to satellite in meters.
+    Computes doppler shift in meters.
 
     Parameters
     ----------
@@ -56,7 +56,7 @@ class DopplerBase(object):
 
   def computeSpeedMps(self, svTime_s):
     '''
-    Computes speed of satellite in meters per second.
+    Computes speed along the vector to satellite in meters per second.
 
     Parameters
     ----------
@@ -68,25 +68,6 @@ class DopplerBase(object):
     -------
     float
       Speed of satellite in meters per second.
-    '''
-    raise NotImplementedError()
-
-  def computeSvTimeS(self, userTime_s):
-    '''
-    Computes SV time from a user time.
-
-    The computation is a solution of the formulae:
-    T_user = T_sv + D(T_sv)/c, for D(t) = D_0 + V*T_sv
-
-    Parameters
-    ----------
-    userTime_s : float
-      Observer's time in seconds
-
-    Returns
-    -------
-    float
-      Satellite vehicle's time at which signal has been generated.
     '''
     raise NotImplementedError()
 

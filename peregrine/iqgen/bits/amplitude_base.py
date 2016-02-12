@@ -20,20 +20,21 @@ class AmplitudeBase(object):
 
   def __init__(self):
     '''
-    Constructs doppler base object for movement control.
+    Constructs base object for amplitude control.
     '''
     super(AmplitudeBase, self).__init__()
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''
-    Applies amplutude modulation to signal
+    Applies amplitude modulation to signal.
 
     Parameters
     ----------
     signal : numpy.ndarray
-      Array with input samples. This array is modified in place.
+      Signal sample vector. Each element defines signal amplitude in range
+      [-1; +1]. This vector is modified in place.
     userTimeAll_s : numpy.ndarray
-      Sample time array in seconds
+      Sample time vector. Each element defines sample time in seconds.
 
     Returns
     -------
