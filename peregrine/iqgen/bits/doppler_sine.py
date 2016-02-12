@@ -17,12 +17,13 @@ from peregrine.iqgen.bits.doppler_base import DopplerBase
 import scipy.constants
 import numpy
 
-__two_pi = scipy.constants.pi * 2.
 
 class Doppler(DopplerBase):
   '''
   Doppler control for an object that has peridic acceleration.
   '''
+
+  TWO_PI = scipy.constants.pi * 2.
 
   def __init__(self, distance0_m, speed0_mps, amplutude_mps, period_s):
     '''
@@ -88,7 +89,7 @@ class Doppler(DopplerBase):
       Distance to satellite in meters.
     '''
     return self.distance0_m + self.speed0_mps * svTime_s + \
-       self.amplutude_mps * (1 - numpy.cos(__two_pi * svTime_s / self.period_s))
+       self.amplutude_mps * (1 - numpy.cos(Doppler.TWO_PI * svTime_s / self.period_s))
 
   def computeSpeedMps(self, svTime_s):
     '''
@@ -106,7 +107,7 @@ class Doppler(DopplerBase):
       Speed of satellite in meters per second.
     '''
     return self.speed0_mps + self.amplutude_mps * \
-           numpy.sin(__two_pi * svTime_s / self.period_s)
+           numpy.sin(Doppler.TWO_PI * svTime_s / self.period_s)
 
   def computeBatch(self,
                    userTimeAll_s,
@@ -158,8 +159,8 @@ class Doppler(DopplerBase):
 
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = self.speed0_mps * freqRatio
-    D_1 = self.amplutude_mps * freqRatio / __two_pi * self.period_s
-    D_2 = __two_pi / self.period_s
+    D_1 = self.amplutude_mps * freqRatio / Doppler.TWO_PI * self.period_s
+    D_2 = Doppler.TWO_PI / self.period_s
     D_3 = self.distance0_m * freqRatio
 
     algMode = 2
@@ -168,17 +169,17 @@ class Doppler(DopplerBase):
 
       numpy.cos(phaseAll, out=phaseAll)
       phaseAll -= 1.
-      phaseAll *= -D_1 * __two_pi
-      phaseAll += (D_0 + ifFrequency_hz) * __two_pi * userTimeAll_s
+      phaseAll *= -D_1 * Doppler.TWO_PI
+      phaseAll += (D_0 + ifFrequency_hz) * Doppler.TWO_PI * userTimeAll_s
       phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
       doppler = D_2 * userTimeAll_s
       numpy.cos(doppler, out=doppler)
       doppler -= 1.
       chipAll_idx = numpy.copy(doppler)
-      phaseAll = (-D_1 * __two_pi) * doppler
-      C = (D_0 + ifFrequency_hz) * __two_pi
-      C2 = __two_pi * D_3
+      phaseAll = (-D_1 * Doppler.TWO_PI) * doppler
+      C = (D_0 + ifFrequency_hz) * Doppler.TWO_PI
+      C2 = Doppler.TWO_PI * D_3
       phaseAll += C * userTimeAll_s
       phaseAll += C2
       # phaseAll += 2 * scipy.constants.pi * D_3
