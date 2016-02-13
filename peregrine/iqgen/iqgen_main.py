@@ -367,6 +367,10 @@ def prepareArgsParser():
                       choices=["low_rate", "normal_rate", "high_rate",
                                "custom_rate"],
                       help="Output profile configuration")
+  parser.add_argument('-j', '--jobs',
+                      type=int,
+                      default=1,
+                      help="Use parallel threads")
 
   return parser
 
@@ -464,7 +468,8 @@ def main():
                   outputConfig,
                   SNR=args.snr,
                   lowPass=args.lpf,
-                  debugLog=args.debug)
+                  debugLog=args.debug,
+                  threadCount=args.jobs)
   args.output.close()
 
   duration_s = time.clock() - startTime_s
