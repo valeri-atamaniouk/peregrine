@@ -455,7 +455,7 @@ def main():
                              code)
   print "Computed symbol/chip delay={} seconds".format(time0_s)
 
-  startTime_s = time.clock()
+  startTime_s = time.time()
   n_samples = long(outputConfig.SAMPLE_RATE_HZ * args.generate)
 
   print "Generating {} samples for {} seconds".format(n_samples, args.generate)
@@ -472,7 +472,7 @@ def main():
                   threadCount=args.jobs)
   args.output.close()
 
-  duration_s = time.clock() - startTime_s
+  duration_s = time.time() - startTime_s
   ratio = n_samples / duration_s
   print "Total time = {} sec. Ratio={} samples per second".format(duration_s, ratio)
 

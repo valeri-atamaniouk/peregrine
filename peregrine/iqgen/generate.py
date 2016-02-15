@@ -23,7 +23,6 @@ import time
 
 # import threading
 import multiprocessing
-import Queue
 
 class Task(object):
   '''
@@ -169,8 +168,6 @@ class Worker(multiprocessing.Process):
     signalSources = self.signalSources
     noiseSigma = self.noiseSigma
     signalFilters = self.signalFilters
-
-    print "Running worker"
 
     task = Task(self.outputConfig,
                 0,
@@ -373,12 +370,12 @@ def generateSamples(outputFile,
 
     # Wait for the first task
     worker = workerPool[workerGetIndex]
-    waitStartTime_s = time.clock()
+    waitStartTime_s = time.time()
     # print "waiting data from worker", workerGetIndex
     signalSamples = worker.queueOut.get()
     # print "Data received from worker", workerGetIndex
     workerGetIndex = (workerGetIndex + 1) % threadCount
-    waitDuration_s = time.clock() - waitStartTime_s
+    waitDuration_s = time.time() - waitStartTime_s
     totalWaitTime_s += waitDuration_s
     taskReceivedCounter += 1
     activeTasks -= 1
@@ -387,7 +384,7 @@ def generateSamples(outputFile,
       print "Error in processor; aborting."
       break
 
-    encodeStartTime_s = time.clock()
+    encodeStartTime_s = time.time()
     # Feed data into encoder
     encodedSamples = encoder.addSamples(signalSamples)
     signalSamples = None
@@ -396,7 +393,7 @@ def generateSamples(outputFile,
       _count += len(encodedSamples)
       encodedSamples.tofile(outputFile)
       encodedSamples = None
-    encodeDuration_s = time.clock() - encodeStartTime_s
+    encodeDuration_s = time.time() - encodeStartTime_s
     totalEncodeTime_s += encodeDuration_s
 
   print "MAIN: Encode duration:", totalEncodeTime_s
