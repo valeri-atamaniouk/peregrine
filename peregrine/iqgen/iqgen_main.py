@@ -348,9 +348,8 @@ def prepareArgsParser():
                       type=float,
                       help="SNR for noise generation")
   parser.add_argument('--debug',
-                      default=False,
-                      help="Enable debug output",
-                      action='store_true')
+                      type=argparse.FileType('wb'),
+                      help="Debug output file")
   parser.add_argument('--generate',
                       type=float,
                       default=3.,
@@ -468,7 +467,7 @@ def main():
                   outputConfig,
                   SNR=args.snr,
                   lowPass=args.lpf,
-                  debugLog=args.debug,
+                  logFile=args.debug,
                   threadCount=args.jobs)
   args.output.close()
 

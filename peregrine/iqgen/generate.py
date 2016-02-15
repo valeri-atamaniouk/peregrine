@@ -32,13 +32,10 @@ class Task(object):
 
   def __init__(self,
                outputConfig,
-               userTime0_s,
-               nSamples,
                signalSources,
                noiseSigma=None,
                signalFilters=None,
-               generateDebug=False,
-               firstSampleIndex=None):
+               generateDebug=False):
     '''
     Parameters
     ----------
@@ -64,9 +61,8 @@ class Task(object):
     else:
       self.noise = None
     self.nSamples = outputConfig.SAMPLE_BATCH_SIZE
-    self.update(userTime0_s, nSamples, firstSampleIndex)
 
-  def update(self, userTime0_s, nSamples, firstSampleIndex=None):
+  def update(self, userTime0_s, nSamples, firstSampleIndex):
     self.userTime0_s = userTime0_s
     self.firstSampleIndex = firstSampleIndex
 
@@ -88,6 +84,8 @@ class Task(object):
     userTime0_s = self.userTime0_s
     userTimeX_s = userTime0_s + float(self.nSamples) / \
                                 float(outputConfig.SAMPLE_RATE_HZ)
+
+    # print "SPACE:", userTime0_s, userTimeX_s, self.nSamples
 
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
@@ -127,7 +125,6 @@ class Task(object):
     inputParams = (self.userTime0_s, self.nSamples, self.firstSampleIndex)
     return (inputParams, sigs, debugData)
 
-
 # class Worker(threading.Thread):
 class Worker(multiprocessing.Process):
 
@@ -144,24 +141,19 @@ class Worker(multiprocessing.Process):
     self.generateDebug = generateDebug
 
   def run(self):
-    outputConfig = self.outputConfig
-    signalSources = self.signalSources
-    noiseSigma = self.noiseSigma
-    signalFilters = self.signalFilters
-    generateDebug = self.generateDebug
-
     task = Task(self.outputConfig,
-                0,
-                outputConfig.SAMPLE_BATCH_SIZE,
-                signalSources,
-                noiseSigma=noiseSigma,
-                signalFilters=signalFilters,
-                denerateDebug=generateDebug,
-                firstSampleIndex=0)
+                self.signalSources,
+                noiseSigma=self.noiseSigma,
+                signalFilters=self.signalFilters,
+                generateDebug=self.generateDebug)
 
     while True:
       opStartTime_s = time.clock()
-      (userTime0_s, nSamples, firstSampleIndex) = self.queueIn.get()
+      inputRequest = self.queueIn.get()
+      if inputRequest is None:
+        # EOF reached
+        break
+      (userTime0_s, nSamples, firstSampleIndex) = inputRequest
       # print "Received params", userTime0_s, nSamples, firstSampleIndex
       opDuration_s = time.clock() - opStartTime_s
       self.totalWaitTime_s += opDuration_s
@@ -169,13 +161,23 @@ class Worker(multiprocessing.Process):
       try:
         task.update(userTime0_s, nSamples, firstSampleIndex)
         result = task.perform()
+        import copy
+        result = copy.deepcopy(result)
         self.queueOut.put(result)
       except:
         exType, exValue, exTraceback = sys.exc_info()
         traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
+        self.queueOut.put(None)
+        self.queueIn.close()
+        self.queueOut.close()
         sys.exit(1)
       duration_s = time.clock() - startTime_s
       self.totalExecTime_s += duration_s
+    statistics = (self.totalWaitTime_s, self.totalExecTime_s)
+    self.queueOut.put(statistics)
+    self.queueIn.close()
+    self.queueOut.close()
+    sys.exit(0)
 
 def computeTimeIntervalS(outputConfig):
   '''
@@ -294,20 +296,29 @@ def generateSamples(outputFile,
   deltaUserTime_s = computeTimeIntervalS(outputConfig)
   debugFlag = logFile is not None
 
-  workerPool = [Worker(outputConfig,
-                       sv_list,
-                       Nsigma,
-                       lpf,
-                       debugFlag) for _ in range(threadCount)]
+  if threadCount > 0:
+    workerPool = [Worker(outputConfig,
+                         sv_list,
+                         Nsigma,
+                         lpf,
+                         debugFlag) for _ in range(threadCount)]
 
-  for worker in workerPool:
-    worker.start()
+    for worker in workerPool:
+      worker.start()
+    maxTaskListSize = threadCount * 2
+  else:
+    workerPool = None
+    task = Task(outputConfig,
+                 sv_list,
+                 noiseSigma=Nsigma,
+                 signalFilters=lpf,
+                 generateDebug=debugFlag)
+    maxTaskListSize = 1
 
   workerPutIndex = 0
   workerGetIndex = 0
   activeTasks = 0
 
-  maxTaskListSize = threadCount * 2
   totalSampleCounter = 0
   taskQueuedCounter = 0
   taskReceivedCounter = 0
@@ -329,10 +340,13 @@ def generateSamples(outputFile,
                                     outputConfig.SAMPLE_RATE_HZ
 
       params = (userTime0_s, sampleCount, totalSampleCounter)
-      # print "Putting ", params, "to worker", workerPutIndex
-      workerPool[workerPutIndex].queueIn.put(params)
+      # print ">>> ", userTime0_s, sampleCount, totalSampleCounter, workerPutIndex
+      if workerPool is not None:
+        workerPool[workerPutIndex].queueIn.put(params)
+        workerPutIndex = (workerPutIndex + 1) % threadCount
+      else:
+        task.update(userTime0_s, sampleCount, totalSampleCounter)
       activeTasks += 1
-      workerPutIndex = (workerPutIndex + 1) % threadCount
 
       # Update parameters for the next batch interval
       userTime_s = userTimeX_s
@@ -346,15 +360,23 @@ def generateSamples(outputFile,
       # No more tasks to wait
       break
 
-    # Wait for the first task
-    worker = workerPool[workerGetIndex]
-    waitStartTime_s = time.time()
-    # print "waiting data from worker", workerGetIndex
-    result = worker.queueOut.get()
-    # print "Data received from worker", workerGetIndex
-    workerGetIndex = (workerGetIndex + 1) % threadCount
-    waitDuration_s = time.time() - waitStartTime_s
-    totalWaitTime_s += waitDuration_s
+    try:
+      if workerPool is not None:
+        # Wait for the first task
+        worker = workerPool[workerGetIndex]
+        waitStartTime_s = time.time()
+        # print "waiting data from worker", workerGetIndex
+        result = worker.queueOut.get()
+        # print "Data received from worker", workerGetIndex
+        workerGetIndex = (workerGetIndex + 1) % threadCount
+        waitDuration_s = time.time() - waitStartTime_s
+        totalWaitTime_s += waitDuration_s
+      else:
+        result = task.perform()
+    except:
+      exType, exValue, exTraceback = sys.exc_info()
+      traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
+      result = None
     taskReceivedCounter += 1
     activeTasks -= 1
 
@@ -363,13 +385,15 @@ def generateSamples(outputFile,
       break
 
     (inputParams, signalSamples, debugData) = result
+    (_userTime0_s, _sampleCount, _firstSampleIndex) = inputParams
+    # print "<<< ", _userTime0_s, _sampleCount, _firstSampleIndex
 
     if logFile is not None:
       # Data from all satellites is collected. Now we can dump the debug matrix
-      totalSampleCounter = inputParams.firstSampleIndex
+
       userTimeAll_s = debugData[0]
-      for smpl_idx in range(len(userTimeAll_s)):
-        logFile.write("{},{},".format(totalSampleCounter,
+      for smpl_idx in range(_sampleCount):
+        logFile.write("{},{},".format(_firstSampleIndex + smpl_idx,
                                        userTimeAll_s[smpl_idx]))
         for svIdx in range(len(sv_list)):
           # signalSource = signalSources[svIdx]
@@ -405,7 +429,19 @@ def generateSamples(outputFile,
   if len(encodedSamples) > 0:
     encodedSamples.tofile(outputFile)
 
-  if (debugFlag): logFile.close()
+  if debugFlag: logFile.close()
 
-  for worker in workerPool:
-    worker.terminate()
+  if workerPool is not None:
+    for worker in workerPool:
+      worker.queueIn.put(None)
+    for worker in workerPool:
+      try:
+        statistics = worker.queueOut.get(timeout=2)
+        print "Statistics:", statistics
+      except:
+        exType, exValue, exTraceback = sys.exc_info()
+        traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
+      worker.queueIn.close()
+      worker.queueOut.close()
+      worker.terminate()
+      worker.join()
