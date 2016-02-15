@@ -173,7 +173,7 @@ def prepareArgsParser():
     def doUpdate(self, sv, parser, namespace, values, option_string):
       if sv.l1caEnabled:
         frequency_hz = signals.GPS.L1CA.CENTER_FREQUENCY_HZ
-      elif sv.l2Enabled:
+      elif sv.l2cEnabled:
         frequency_hz = signals.GPS.L2C.CENTER_FREQUENCY_HZ
       else:
         raise ValueError("Signal band must be specified before doppler")
@@ -289,7 +289,7 @@ def prepareArgsParser():
                       type=float,
                       help="Doppler shift change in hertz/second",
                       action=UpdateDopplerType)
-  parser.add_argument('--doppler-distance',
+  parser.add_argument('--distance',
                       type=float,
                       help="Distance in meters for doppler delay (initial)",
                       action=UpdateDopplerType)

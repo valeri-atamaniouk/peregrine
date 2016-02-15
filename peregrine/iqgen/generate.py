@@ -21,7 +21,8 @@ from peregrine.iqgen.bits import signals
 import scipy
 import time
 
-import threading
+# import threading
+import multiprocessing
 import Queue
 
 class Task(object):
@@ -52,7 +53,6 @@ class Task(object):
     firstSampleIndex : long
     '''
 
-    self.queueOut = Queue.Queue(1)
     self.outputConfig = outputConfig
     self.signalSources = signalSources
     self.signalFilters = signalFilters
@@ -72,7 +72,8 @@ class Task(object):
     self.firstSampleIndex = firstSampleIndex
 
     if (self.nSamples != nSamples):
-      self.signals.resize((4, nSamples))
+      self.signals = scipy.ndarray((4, nSamples), dtype=float)
+      # self.signals.resize((4, nSamples))
       if self.noiseSigma is not None:
         # Initialize signal array with noise
         self.noise = self.noiseSigma * scipy.randn(4, nSamples)
@@ -146,52 +147,57 @@ class Task(object):
         if filterObject is not None:
           sigs[i][:] = filterObject.filter(sigs[i])
 
-    self.queueOut.put(sigs)
+    return sigs
 
-  def reportError(self):
-    self.queueOut.put(None)
 
-class Worker(threading.Thread):
+# class Worker(threading.Thread):
+class Worker(multiprocessing.Process):
 
-  def __init__(self, queueIn):
+  def __init__(self, outputConfig, signalSources, noiseSigma, signalFilters):
     super(Worker, self).__init__()
-    self.queueIn = queueIn
-    self.daemon = True
+    self.queueIn = multiprocessing.Queue()
+    self.queueOut = multiprocessing.Queue()
+    self.totalWaitTime_s = 0.
+    self.totalExecTime_s = 0.
+    self.outputConfig = outputConfig
+    self.signalSources = signalSources
+    self.noiseSigma = noiseSigma
+    self.signalFilters = signalFilters
 
   def run(self):
+    outputConfig = self.outputConfig
+    signalSources = self.signalSources
+    noiseSigma = self.noiseSigma
+    signalFilters = self.signalFilters
+
+    print "Running worker"
+
+    task = Task(self.outputConfig,
+                0,
+                outputConfig.SAMPLE_BATCH_SIZE,
+                signalSources,
+                noiseSigma=noiseSigma,
+                signalFilters=signalFilters,
+                logFile=None,
+                firstSampleIndex=0)
+
     while True:
-      task = self.queueIn.get()
-      if task is None:
-        break
+      opStartTime_s = time.clock()
+      (userTime0_s, nSamples, firstSampleIndex) = self.queueIn.get()
+      # print "Received params", userTime0_s, nSamples, firstSampleIndex
+      opDuration_s = time.clock() - opStartTime_s
+      self.totalWaitTime_s += opDuration_s
+      startTime_s = time.clock()
       try:
-        task.perform()
+        task.update(userTime0_s, nSamples, firstSampleIndex)
+        result = task.perform()
+        self.queueOut.put(result)
       except:
         exType, exValue, exTraceback = sys.exc_info()
         traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
-        task.reportError()
-
-class WorkerPool(object):
-  def __init__(self, threadCount):
-    self.taskQueue = Queue.Queue()
-    self.workers = [Worker(self.taskQueue) for _ in range(threadCount)]
-    for worker in self.workers:
-      worker.start()
-
-  def finish(self):
-    while True:
-      try:
-        task = self.taskQueue.get_nowait()
-      except Queue.Empty:
-        task = None
-      if task is None:
-        break
-      else:
-        print "Cancelling task: ", task
-        task.queueOut.put(None)
-    for _ in range(len(self.workers)):
-      self.taskQueue.put(None)
-    for worker in self.workers:
-      worker.join()
+        sys.exit(1)
+      duration_s = time.clock() - startTime_s
+      self.totalExecTime_s += duration_s
 
 def computeTimeIntervalS(outputConfig):
   '''
@@ -252,6 +258,7 @@ def generateSamples(outputFile,
   #
   print "Generating samples, sample rate={} Hz, interval={} seconds, SNR={}".format(
         outputConfig.SAMPLE_RATE_HZ, nSamples / outputConfig.SAMPLE_RATE_HZ, SNR)
+  print "Jobs: ", threadCount
 
   #
   # Print out SV parameters
@@ -313,17 +320,28 @@ def generateSamples(outputFile,
 
   deltaUserTime_s = computeTimeIntervalS(outputConfig)
 
-  workerPool = WorkerPool(threadCount)
+  workerPool = [Worker(outputConfig,
+                       sv_list,
+                       Nsigma,
+                       lpf) for _ in range(threadCount)]
+
+  for worker in workerPool:
+    worker.start()
+
+  workerPutIndex = 0
+  workerGetIndex = 0
+  activeTasks = 0
 
   maxTaskListSize = threadCount * 2
-  activeTaskList = []
-  recycledTaskList = []
   totalSampleCounter = 0
   taskQueuedCounter = 0
   taskReceivedCounter = 0
 
+  totalEncodeTime_s = 0.
+  totalWaitTime_s = 0.
+
   while True:
-    while len(activeTaskList) < maxTaskListSize and totalSampleCounter < nSamples:
+    while activeTasks < maxTaskListSize and totalSampleCounter < nSamples:
       # We have space in the task backlog and not all batchIntervals are issued
       userTime0_s = userTime_s
       userTimeX_s = userTime_s + deltaUserTime_s
@@ -334,27 +352,16 @@ def generateSamples(outputFile,
         sampleCount = nSamples - totalSampleCounter
         userTimeX_s = userTime0_s + float(sampleCount) / \
                                     outputConfig.SAMPLE_RATE_HZ
-      if not recycledTaskList:
-        # Create new task object only when there is no available object in the
-        # pool
-        task = Task(outputConfig,
-                    userTime0_s,
-                    sampleCount,
-                    sv_list,
-                    noiseSigma=Nsigma,
-                    signalFilters=lpf,
-                    logFile=_out_txt,
-                    firstSampleIndex=totalSampleCounter)
-      else:
-        # Reuse object from the pool
-        task = recycledTaskList.pop()
-        task.update(userTime0_s, sampleCount, totalSampleCounter)
+
+      params = (userTime0_s, sampleCount, totalSampleCounter)
+      # print "Putting ", params, "to worker", workerPutIndex
+      workerPool[workerPutIndex].queueIn.put(params)
+      activeTasks += 1
+      workerPutIndex = (workerPutIndex + 1) % threadCount
 
       # Update parameters for the next batch interval
       userTime_s = userTimeX_s
       totalSampleCounter += sampleCount
-      activeTaskList.append(task)
-      workerPool.taskQueue.put(task)
       taskQueuedCounter += 1
 
     # What for the data only if we have something to wait
@@ -365,15 +372,22 @@ def generateSamples(outputFile,
       break
 
     # Wait for the first task
-    task = activeTaskList.pop(0)
-    signalSamples = task.queueOut.get()
-    recycledTaskList.append(task)
+    worker = workerPool[workerGetIndex]
+    waitStartTime_s = time.clock()
+    # print "waiting data from worker", workerGetIndex
+    signalSamples = worker.queueOut.get()
+    # print "Data received from worker", workerGetIndex
+    workerGetIndex = (workerGetIndex + 1) % threadCount
+    waitDuration_s = time.clock() - waitStartTime_s
+    totalWaitTime_s += waitDuration_s
     taskReceivedCounter += 1
+    activeTasks -= 1
 
     if signalSamples is None:
       print "Error in processor; aborting."
       break
 
+    encodeStartTime_s = time.clock()
     # Feed data into encoder
     encodedSamples = encoder.addSamples(signalSamples)
     signalSamples = None
@@ -382,6 +396,11 @@ def generateSamples(outputFile,
       _count += len(encodedSamples)
       encodedSamples.tofile(outputFile)
       encodedSamples = None
+    encodeDuration_s = time.clock() - encodeStartTime_s
+    totalEncodeTime_s += encodeDuration_s
+
+  print "MAIN: Encode duration:", totalEncodeTime_s
+  print "MAIN: wait duration:", totalWaitTime_s
 
   encodedSamples = encoder.flush()
   if len(encodedSamples) > 0:
@@ -389,4 +408,5 @@ def generateSamples(outputFile,
 
   if (debugLog): _out_txt.close()
 
-  workerPool.finish()
+  for worker in workerPool:
+    worker.terminate()
