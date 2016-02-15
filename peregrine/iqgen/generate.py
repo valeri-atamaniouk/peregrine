@@ -37,7 +37,7 @@ class Task(object):
                signalSources,
                noiseSigma=None,
                signalFilters=None,
-               logFile=None,
+               generateDebug=False,
                firstSampleIndex=None):
     '''
     Parameters
@@ -48,14 +48,14 @@ class Task(object):
     signalSources : array-like
     noiseSigma : float
     signalFilters : array-like
-    logFile : object
+    generateDebug : bool
     firstSampleIndex : long
     '''
 
     self.outputConfig = outputConfig
     self.signalSources = signalSources
     self.signalFilters = signalFilters
-    self.logFile = logFile
+    self.generateDebug = generateDebug
     self.noiseSigma = noiseSigma
     self.signals = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
     if noiseSigma is not None:
@@ -83,7 +83,7 @@ class Task(object):
     signalSources = self.signalSources
     signalFilters = self.signalFilters
 
-    logFile = self.logFile
+    generateDebug = self.generateDebug
 
     userTime0_s = self.userTime0_s
     userTimeX_s = userTime0_s + float(self.nSamples) / \
@@ -101,8 +101,10 @@ class Task(object):
       # Initialize signal array with noise
       sigs += noise
 
-    if logFile is not None:
+    if generateDebug:
       debugData = []
+    else:
+      debugData = None
 
     # Sum up signals for all SVs
     for signalSource in signalSources:
@@ -111,33 +113,9 @@ class Task(object):
                                        sigs,
                                        outputConfig)
       # Debugging output
-      if logFile is not None:
+      if generateDebug:
         debugData.append(t)
       t = None
-
-    if logFile is not None:
-      # Data from all satellites is collected. Now we can dump the debug matrix
-
-      totalSampleCounter = self.firstSampleIndex
-      for smpl_idx in range(len(userTimeAll_s)):
-        logFile.write("{},{},".format(totalSampleCounter,
-                                       userTimeAll_s[smpl_idx]))
-        for svIdx in range(len(signalSources)):
-          # signalSource = signalSources[svIdx]
-          sv_bands = debugData[svIdx]
-          for band in sv_bands:
-            sv_sigs = band[0]
-            doppler = band[1]
-            idx = band[2]
-            codes = band[3]
-            logFile.write("{},{},{},{}".format(sv_sigs[smpl_idx],
-                                                doppler[smpl_idx],
-                                                idx[smpl_idx],
-                                                codes[smpl_idx]))
-        # End of line
-        logFile.write("\n")
-        totalSampleCounter += 1
-      logFile.flush()  # Flush the batch data into file
 
     if signalFilters is list:
       # Filter signal values through LPF, BPF or another
@@ -146,13 +124,14 @@ class Task(object):
         if filterObject is not None:
           sigs[i][:] = filterObject.filter(sigs[i])
 
-    return sigs
+    inputParams = (self.userTime0_s, self.nSamples, self.firstSampleIndex)
+    return (inputParams, sigs, debugData)
 
 
 # class Worker(threading.Thread):
 class Worker(multiprocessing.Process):
 
-  def __init__(self, outputConfig, signalSources, noiseSigma, signalFilters):
+  def __init__(self, outputConfig, signalSources, noiseSigma, signalFilters, generateDebug):
     super(Worker, self).__init__()
     self.queueIn = multiprocessing.Queue()
     self.queueOut = multiprocessing.Queue()
@@ -162,12 +141,14 @@ class Worker(multiprocessing.Process):
     self.signalSources = signalSources
     self.noiseSigma = noiseSigma
     self.signalFilters = signalFilters
+    self.generateDebug = generateDebug
 
   def run(self):
     outputConfig = self.outputConfig
     signalSources = self.signalSources
     noiseSigma = self.noiseSigma
     signalFilters = self.signalFilters
+    generateDebug = self.generateDebug
 
     task = Task(self.outputConfig,
                 0,
@@ -175,7 +156,7 @@ class Worker(multiprocessing.Process):
                 signalSources,
                 noiseSigma=noiseSigma,
                 signalFilters=signalFilters,
-                logFile=None,
+                denerateDebug=generateDebug,
                 firstSampleIndex=0)
 
     while True:
@@ -223,7 +204,7 @@ def generateSamples(outputFile,
                     outputConfig,
                     SNR=None,
                     lowPass=False,
-                    debugLog=False,
+                    logFile=None,
                     threadCount=1):
   '''
   Generates samples.
@@ -307,20 +288,17 @@ def generateSamples(outputFile,
       lpf[band.INDEX] = LowPassFilter(outputConfig,
                                       band.INTERMEDIATE_FREQUENCY_HZ)
 
-  if debugLog:
-    _out_txt = open("out.txt", "wt");
-  else:
-    _out_txt = None
-
   userTime_s = float(time0S)
   oldPerformanceCounter = 0
 
   deltaUserTime_s = computeTimeIntervalS(outputConfig)
+  debugFlag = logFile is not None
 
   workerPool = [Worker(outputConfig,
                        sv_list,
                        Nsigma,
-                       lpf) for _ in range(threadCount)]
+                       lpf,
+                       debugFlag) for _ in range(threadCount)]
 
   for worker in workerPool:
     worker.start()
@@ -372,7 +350,7 @@ def generateSamples(outputFile,
     worker = workerPool[workerGetIndex]
     waitStartTime_s = time.time()
     # print "waiting data from worker", workerGetIndex
-    signalSamples = worker.queueOut.get()
+    result = worker.queueOut.get()
     # print "Data received from worker", workerGetIndex
     workerGetIndex = (workerGetIndex + 1) % threadCount
     waitDuration_s = time.time() - waitStartTime_s
@@ -380,9 +358,33 @@ def generateSamples(outputFile,
     taskReceivedCounter += 1
     activeTasks -= 1
 
-    if signalSamples is None:
+    if result is None:
       print "Error in processor; aborting."
       break
+
+    (inputParams, signalSamples, debugData) = result
+
+    if logFile is not None:
+      # Data from all satellites is collected. Now we can dump the debug matrix
+      totalSampleCounter = inputParams.firstSampleIndex
+      userTimeAll_s = debugData[0]
+      for smpl_idx in range(len(userTimeAll_s)):
+        logFile.write("{},{},".format(totalSampleCounter,
+                                       userTimeAll_s[smpl_idx]))
+        for svIdx in range(len(sv_list)):
+          # signalSource = signalSources[svIdx]
+          sv_bands = debugData[svIdx]
+          for band in sv_bands:
+            sv_sigs = band[0]
+            doppler = band[1]
+            idx = band[2]
+            codes = band[3]
+            logFile.write("{},{},{},{}".format(sv_sigs[smpl_idx],
+                                                doppler[smpl_idx],
+                                                idx[smpl_idx],
+                                                codes[smpl_idx]))
+        # End of line
+        logFile.write("\n")
 
     encodeStartTime_s = time.time()
     # Feed data into encoder
@@ -403,7 +405,7 @@ def generateSamples(outputFile,
   if len(encodedSamples) > 0:
     encodedSamples.tofile(outputFile)
 
-  if (debugLog): _out_txt.close()
+  if (debugFlag): logFile.close()
 
   for worker in workerPool:
     worker.terminate()
