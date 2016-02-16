@@ -115,7 +115,7 @@ def prepareArgsParser():
       namespace.doppler_type = "zero"
       namespace.doppler_value = 0.
       namespace.doppler_speed = 0.
-      namespace.doppler_distance = 0.
+      namespace.distance = 0.
       namespace.doppler_amplitude = 0.
       namespace.doppler_period = 1.
 
@@ -179,18 +179,18 @@ def prepareArgsParser():
         raise ValueError("Signal band must be specified before doppler")
 
       if namespace.doppler_type == "zero":
-        doppler = zeroDoppler(namespace.doppler_distance, frequency_hz)
+        doppler = zeroDoppler(namespace.distance, frequency_hz)
       elif namespace.doppler_type == "const":
-        doppler = constDoppler(namespace.doppler_distance,
+        doppler = constDoppler(namespace.distance,
                                frequency_hz,
                                namespace.doppler_value)
       elif namespace.doppler_type == "linear":
-        doppler = linearDoppler(namespace.doppler_distance,
+        doppler = linearDoppler(namespace.distance,
                                 frequency_hz,
                                 namespace.doppler_value,
                                 namespace.doppler_speed)
       elif namespace.doppler_type == "sine":
-        doppler = sineDoppler(namespace.doppler_distance,
+        doppler = sineDoppler(namespace.distance,
                               frequency_hz,
                               namespace.doppler_value,
                               namespace.doppler_amplitude,
