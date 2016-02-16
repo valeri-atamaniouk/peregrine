@@ -110,7 +110,7 @@ class BandTwoBitsEncoder(Encoder):
 
     bits = self.bits
     start = self.n_bits
-    end = self.bits + n_samples * 2
+    end = start + n_samples * 2
     bits[start + 0:end:2] = signs
     bits[start + 1:end:2] = amps
     self.n_bits = end
