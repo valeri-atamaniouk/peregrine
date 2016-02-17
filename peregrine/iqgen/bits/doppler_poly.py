@@ -240,7 +240,7 @@ def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
     object that implments constant acceleration logic.
   '''
   speed0_mps = -scipy.constants.c / frequency_hz * doppler0_hz
-  accel_mps2 = -scipy.constants.c / frequency_hz * dopplerChange_hzps
+  accel_mps2 = -scipy.constants.c / frequency_hz * dopplerChange_hzps / 2.
 
   return Doppler((accel_mps2, speed0_mps, distance0_m))
 
