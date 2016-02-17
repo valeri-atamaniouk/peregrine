@@ -84,7 +84,6 @@ class TrackingLoop(object):
     raise NotImplementedError()
 
 def track(samples, channels,
-          signal, # L1C/A or L2C
           ms_to_track=None,
           sampling_freq=defaults.sampling_freq,
           chipping_rate=defaults.chipping_rate,
@@ -236,7 +235,7 @@ def track(samples, channels,
           loop_filter.to_dict()['carr_freq'] + IF, carr_phase,
           prn_code,
           sampling_freq,
-          signal
+          chan.signal
         )
         sample_index += blksize
         carr_phase_acc += loop_filter.to_dict()['carr_freq'] * blksize / sampling_freq
@@ -272,7 +271,7 @@ def track(samples, channels,
       track_result.cn0[i] = cn0_est.update(P.real, P.imag)
 
       i += 1
-      if signal == "l1ca":
+      if chan.signal == "l1ca":
         ms_tracked += coherent_ms
       else: # L2C clause
         ms_tracked += 20
