@@ -112,7 +112,7 @@ class Message(object):
   Message that is a block of bits
   '''
 
-  def __init__(self, n_msg=10, n_prefixBits=50):
+  def __init__(self, prn, tow0=0, n_msg=10, n_prefixBits=50):
     '''
     Constructs message object.
 
@@ -138,8 +138,13 @@ class Message(object):
     prefixBits[0::2] = 1
     self.symbolData[0:prefix_len] = self.encoder.encode(prefixBits)
 
+    tow = tow0
+    msg_id = 0
+
     for i in range(prefix_len, self.n_msg * 600 + prefix_len, 600):
-      cnav_msg = CNavRawMsg.generate()
+      cnav_msg = CNavRawMsg.generate(prn, msg_id, tow)
+      msg_id += 1
+      tow += 2
       # print "CNAV=", cnav_msg
       encoded = self.encoder.encode(cnav_msg)
       # print "ENC=", encoded
