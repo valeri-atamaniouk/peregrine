@@ -15,16 +15,29 @@ related to symbol contents that flips the value every other bit.
 
 import numpy
 
+
 class Message(object):
   '''
   Message that contains zeros and ones
   '''
+
   def __init__(self):
     '''
     Constructs object.
     '''
     super(Message, self).__init__()
     self.bits = numpy.asarray([0, 1], dtype=numpy.uint8)
+
+  def __str__(self, *args, **kwargs):
+    '''
+    Formats object as string literal
+
+    Returns
+    -------
+    string
+      String representation of the object
+    '''
+    return "ZeroOne"
 
   def getDataBits(self, dataAll_idx):
     '''

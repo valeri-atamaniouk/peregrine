@@ -37,6 +37,17 @@ class Message(object):
     tmp -= 1
     self.bits = tmp.astype(numpy.uint8)
 
+  def __str__(self, *args, **kwargs):
+    '''
+    Formats object as string literal
+
+    Returns
+    -------
+    string
+      String representation of the object
+    '''
+    return "Block: length=%d" % len(self.bits)
+
   def getDataBits(self, dataAll_idx):
     '''
     Generates vector of data bits corresponding to input index

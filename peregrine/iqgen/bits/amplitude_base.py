@@ -13,6 +13,7 @@ related to base implementation of amplitude class.
 
 """
 
+
 class AmplitudeBase(object):
   '''
   Amplitude control for a signal source.
@@ -43,3 +44,13 @@ class AmplitudeBase(object):
     '''
     raise NotImplementedError()
 
+  def computeMeanPower(self):
+    '''
+    Computes mean signal power.
+
+    Returns
+    -------
+    float
+      Mean signal power for the configured amplitude
+    '''
+    raise NotImplementedError()

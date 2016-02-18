@@ -17,6 +17,7 @@ from peregrine.iqgen.bits.amplitude_base import AmplitudeBase
 
 import numpy
 
+
 class AmplitudePoly(AmplitudeBase):
   '''
   Amplitude control with polynomial dependency over time.
@@ -75,3 +76,19 @@ class AmplitudePoly(AmplitudeBase):
       signal *= amplitudeVector
 
     return signal
+
+  def computeMeanPower(self):
+    '''
+    Computes mean signal power.
+
+    Returns
+    -------
+    float
+      Mean signal power for the configured amplitude
+    '''
+    poly = self.poly
+    if poly is not None:
+      result = numpy.square(poly(0.)) * 0.5
+    else:
+      result = 0.5
+    return result
