@@ -259,6 +259,7 @@ def prepareArgsParser():
       elif namespace.message_type == "crc":
         messageL1 = ZeroOneMessage()
         messageL2 = CNavMessage()
+        messageL1 = messageL2
       else:
         raise ValueError("Unsupported message type")
       sv.setL1CAMessage(messageL1)
