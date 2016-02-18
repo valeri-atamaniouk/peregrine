@@ -40,6 +40,7 @@ from peregrine.iqgen.if_iface import CustomRateConfig
 from peregrine.iqgen.bits.message_const import Message as ConstMessage
 from peregrine.iqgen.bits.message_zeroone import Message as ZeroOneMessage
 from peregrine.iqgen.bits.message_block import Message as BlockMessage
+from peregrine.iqgen.bits.message_cnav import Message as CNavMessage
 
 # PRN code generators
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
@@ -54,6 +55,7 @@ from peregrine.iqgen.bits.encoder_gps import GPSL2TwoBitsEncoder
 from peregrine.iqgen.bits.encoder_gps import GPSL1L2TwoBitsEncoder
 
 from peregrine.iqgen.generate import generateSamples
+
 
 def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
   '''
@@ -87,6 +89,7 @@ def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
   distance_m = doppler.computeDistanceM(symbolDelay_s + chipDelay_s)
   return distance_m / scipy.constants.c
 
+
 def prepareArgsParser():
   '''
   Constructs command line argument parser.
@@ -97,6 +100,7 @@ def prepareArgsParser():
     Command line argument parser object.
   '''
   class AddSv(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(AddSv, self).__init__(option_strings, dest, **kwargs)
 
@@ -132,6 +136,7 @@ def prepareArgsParser():
       namespace.amplitude_period = None
 
   class UpdateSv(argparse.Action):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateSv, self).__init__(option_strings, dest, **kwargs)
 
@@ -148,6 +153,7 @@ def prepareArgsParser():
       pass
 
   class UpdateBands(UpdateSv):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateBands, self).__init__(option_strings, dest, **kwargs)
 
@@ -167,6 +173,7 @@ def prepareArgsParser():
       sv.setL2CEnabled(l2cEnabled)
 
   class UpdateDopplerType(UpdateSv):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateDopplerType, self).__init__(option_strings, dest, **kwargs)
 
@@ -200,6 +207,7 @@ def prepareArgsParser():
       sv.doppler = doppler
 
   class UpdateAmplitudeType(UpdateSv):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateAmplitudeType, self).__init__(option_strings, dest, **kwargs)
 
@@ -234,22 +242,30 @@ def prepareArgsParser():
       sv.setAmplitude(amplitude)
 
   class UpdateMessageType(UpdateSv):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateMessageType, self).__init__(option_strings, dest, **kwargs)
 
     def doUpdate(self, sv, parser, namespace, values, option_string):
       if namespace.message_type == "zero":
-        message = ConstMessage(1)
+        messageL1 = ConstMessage(1)
+        messageL2 = messageL1
       elif namespace.message_type == "one":
-        message = ConstMessage(-1)
+        messageL1 = ConstMessage(-1)
+        messageL2 = messageL1
       elif namespace.message_type == "zero+one":
-        message = ZeroOneMessage()
+        messageL1 = ZeroOneMessage()
+        messageL2 = messageL1
+      elif namespace.message_type == "crc":
+        messageL1 = ZeroOneMessage()
+        messageL2 = CNavMessage()
       else:
         raise ValueError("Unsupported message type")
-      sv.setL1CAMessage(message)
-      sv.setL2CMessage(message)
+      sv.setL1CAMessage(messageL1)
+      sv.setL2CMessage(messageL2)
 
   class UpdateMessageFile(UpdateSv):
+
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
       super(UpdateMessageFile, self).__init__(option_strings, dest, **kwargs)
 
@@ -266,7 +282,8 @@ def prepareArgsParser():
       sv.setL1CAMessage(message)
       sv.setL2CMessage(message)
 
-  parser = argparse.ArgumentParser(description="Signal generator", usage='%(prog)s [options]')
+  parser = argparse.ArgumentParser(
+      description="Signal generator", usage='%(prog)s [options]')
   parser.add_argument('--gps-sv',
                       default=[],
                       help='Enable GPS satellite',
@@ -327,7 +344,7 @@ def prepareArgsParser():
                       help="Amplitude period in seconds for sine",
                       action=UpdateAmplitudeType)
   parser.add_argument('--message-type', default="zero",
-                      choices=["zero", "one", "zero+one"],
+                      choices=["zero", "one", "zero+one", "crc"],
                       help="Message type",
                       action=UpdateMessageType)
   parser.add_argument('--message-file',
@@ -372,6 +389,7 @@ def prepareArgsParser():
                       help="Use parallel threads")
 
   return parser
+
 
 def main():
   parser = prepareArgsParser()
@@ -477,4 +495,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-

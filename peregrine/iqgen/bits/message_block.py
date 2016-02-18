@@ -14,10 +14,12 @@ related to providing predefined symbol contents.
 """
 import numpy
 
+
 class Message(object):
   '''
   Message that is a block of bits
   '''
+
   def __init__(self, messageData):
     '''
     Constructs message object.
@@ -30,7 +32,7 @@ class Message(object):
     super(Message, self).__init__()
     self.messageData = messageData[:]
     self.messageLen = len(self.messageData)
-    tmp = numpy.asarray(self.messageData, dtype=numpy.int8)
+    tmp = numpy.asarray(self.messageData, dtype=numpy.uint8)
     tmp *= -2
     tmp -= 1
     self.bits = tmp.astype(numpy.uint8)
