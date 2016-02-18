@@ -13,6 +13,7 @@ related to radio interface parameters
 
 """
 
+
 class LowRateConfig(object):
   '''
   Output control configuration for quick tests.
@@ -68,8 +69,9 @@ class LowRateConfig(object):
       INDEX : int
         Band index
       '''
-      INTERMEDIATE_FREQUENCY_HZ = 2.048e+6
+      INTERMEDIATE_FREQUENCY_HZ = 7.5e+5
       INDEX = 1
+
 
 class NormalRateConfig(object):
   '''
@@ -129,6 +131,7 @@ class NormalRateConfig(object):
       INTERMEDIATE_FREQUENCY_HZ = 7.5e+6
       INDEX = 1
 
+
 class HighRateConfig(object):
   '''
   Output control configuration for high data rate tests.
@@ -149,6 +152,7 @@ class HighRateConfig(object):
   SAMPLE_BATCH_SIZE = 100000
 
   GPS = NormalRateConfig.GPS
+
 
 class CustomRateConfig(object):
   '''
