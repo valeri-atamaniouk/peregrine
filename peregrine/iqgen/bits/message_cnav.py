@@ -51,12 +51,13 @@ def generate27Vector(g1, g2):
     int
       Parity bit: 0 or 1.
     '''
-    return (0x6996 >> ((value ^ (value)) & 15)) & 1
+    return (0x6996 >> ((value ^ (value >> 4)) & 15)) & 1
 
   vectorG = numpy.ndarray((128, 2), dtype=numpy.uint8)
   for i in range(128):
     vectorG[i][0] = parity6(i & g1)
     vectorG[i][1] = parity6(i & g2)
+
   return vectorG
 
 
@@ -139,9 +140,13 @@ class Message(object):
 
     for i in range(prefix_len, self.n_msg * 600 + prefix_len, 600):
       cnav_msg = CNavRawMsg.generate()
+      # print "CNAV=", cnav_msg
       encoded = self.encoder.encode(cnav_msg)
+      # print "ENC=", encoded
       self.symbolData[i:i + 600] = encoded
     self.messageLen = len(self.symbolData)
+
+    print self.symbolData
 
   def getDataBits(self, dataAll_idx):
     '''
