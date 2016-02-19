@@ -41,6 +41,7 @@ from peregrine.iqgen.bits.message_const import Message as ConstMessage
 from peregrine.iqgen.bits.message_zeroone import Message as ZeroOneMessage
 from peregrine.iqgen.bits.message_block import Message as BlockMessage
 from peregrine.iqgen.bits.message_cnav import Message as CNavMessage
+from peregrine.iqgen.bits.message_lnav import Message as LNavMessage
 
 # PRN code generators
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
@@ -257,9 +258,8 @@ def prepareArgsParser():
         messageL1 = ZeroOneMessage()
         messageL2 = messageL1
       elif namespace.message_type == "crc":
-        messageL1 = ZeroOneMessage()
+        messageL1 = LNavMessage(sv.prn)
         messageL2 = CNavMessage(sv.prn)
-        messageL1 = messageL2
       else:
         raise ValueError("Unsupported message type")
       sv.setL1CAMessage(messageL1)
@@ -393,6 +393,9 @@ def prepareArgsParser():
 
 
 def main():
+  from peregrine.log import default_logging_config
+  default_logging_config()
+
   parser = prepareArgsParser()
   args = parser.parse_args()
 

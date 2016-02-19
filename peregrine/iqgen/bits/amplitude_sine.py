@@ -18,6 +18,7 @@ from peregrine.iqgen.bits.amplitude_base import AmplitudeBase
 import numpy
 import scipy.constants
 
+
 class AmplitudeSine(AmplitudeBase):
   '''
   Amplitude control with sine modulation over time.
@@ -51,7 +52,7 @@ class AmplitudeSine(AmplitudeBase):
       Literal presentation of object
     '''
     return "AmplitudeSine(base={}, amp={}, p={} s)".\
-      format(self.initial, self.amplitude, self.period_s)
+        format(self.initial, self.amplitude, self.period_s)
 
   def applyAmplitude(self, signal, userTimeAll_s):
     '''
@@ -74,3 +75,16 @@ class AmplitudeSine(AmplitudeBase):
     ampAll = numpy.sin(userTimeAll_s * self.c) * self.amplitude + self.initial
 
     return numpy.multiply(signal, ampAll, out=signal)
+
+  def computeMeanPower(self):
+    '''
+    Computes mean signal power.
+
+    Returns
+    -------
+    float
+      Mean signal power for the configured amplitude
+    '''
+    amplitude = self.amplitude * 0.707 + self.initial
+    result = numpy.square(amplitude) * 0.5
+    return result

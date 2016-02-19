@@ -22,6 +22,7 @@ from peregrine.iqgen.bits.prn_gps_l2c import PrnCode as GPS_L2C_Code
 
 import numpy
 
+
 class SV(object):
   '''
   Satellite object.
@@ -62,6 +63,7 @@ class SV(object):
 
 DEFAULT_MESSAGE = Message(1)
 
+
 class GPS_SV(SV):
   '''
   GPS satellite object.
@@ -99,6 +101,17 @@ class GPS_SV(SV):
       amplitude value for signal generation
     '''
     self.amplitude = amplitude
+
+  def getAmplitude(self):
+    '''
+    Provides amplitude object
+
+    Returns
+    -------
+    object
+      Amplitude object
+    '''
+    return self.amplitude
 
   def setL1CAEnabled(self, enableFlag):
     '''
@@ -144,6 +157,28 @@ class GPS_SV(SV):
     '''
     self.l2cMessage = message
 
+  def getL1CAMessage(self):
+    '''
+    Returns configured message object for GPS L1 C/A band
+
+    Returns
+    -------
+    object
+      L1 C/A message object
+    '''
+    return self.l1caMessage
+
+  def getL2CMessage(self):
+    '''
+    Returns configured message object for GPS L2 C band
+
+    Returns
+    -------
+    object
+      L2 C message object
+    '''
+    return self.l2cMessage
+
   def getBatchSignals(self, userTimeAll_s, samples, outputConfig):
     '''
     Generates signal samples.
@@ -173,7 +208,9 @@ class GPS_SV(SV):
                                          self.l1caMessage,
                                          self.l1caCode,
                                          outputConfig)
-      numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
+      numpy.add(samples[frequencyIndex],
+                values[0],
+                out=samples[frequencyIndex])
       result.append(values)
     if (self.l2cEnabled):
       intermediateFrequency_hz = outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
@@ -185,7 +222,9 @@ class GPS_SV(SV):
                                          self.l2cMessage,
                                          self.l2cCode,
                                          outputConfig)
-      numpy.add(samples[frequencyIndex], values[0], out=samples[frequencyIndex])
+      numpy.add(samples[frequencyIndex],
+                values[0],
+                out=samples[frequencyIndex])
       result.append(values)
     return result
 

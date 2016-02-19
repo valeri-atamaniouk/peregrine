@@ -14,10 +14,12 @@ related to non-changing symbol contents.
 
 """
 
+
 class Message(object):
   '''
   Message consisting of same bits
   '''
+
   def __init__(self, bitValue):
     '''
     Initializes object.
@@ -29,6 +31,17 @@ class Message(object):
     '''
     super(Message, self).__init__()
     self.binValue = 1 if bitValue < 0 else 0
+
+  def __str__(self, *args, **kwargs):
+    '''
+    Formats object as string literal
+
+    Returns
+    -------
+    string
+      String representation of the object
+    '''
+    return "Const: bit value=%d" % self.binValue
 
   def getDataBits(self, dataAll_idx):
     '''

@@ -11,13 +11,17 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 '''
 
 '''
+The :mod:`peregrine.iqgen.message_cnav` module contains classes and functions
+related to generating stub GPS CNAV messages.
 '''
 
 import numpy
 from swiftnav.cnav_msg import CNavRawMsg
-
+import logging
 G1 = 0171  # generator polinomial for p1
 G2 = 0133  # generator polinomial for p2
+
+logger = logging.getLogger(__name__)
 
 
 def generate27Vector(g1, g2):
@@ -109,49 +113,55 @@ class ConvEncoder27(object):
 
 class Message(object):
   '''
-  Message that is a block of bits
+  GPS LNAV message block.
+
+  The object provides proper-formatted CNAV messages with random contents.
   '''
 
-  def __init__(self, prn, tow0=0, n_msg=10, n_prefixBits=50):
+  def __init__(self, prn, tow0=2, n_msg=0, n_prefixBits=50):
     '''
     Constructs message object.
 
     Parameters
     ----------
+    prn : int
+      Satellite PRN
+    tow0 : int
+      Time of week in 6-second units for the first message
     n_msg : int, optional
       Number of messages to generate for output
     n_prefixBits : int, optional
-      Number of bits to prepend before the first message
+      Number of bits to issue before the first message
     '''
     super(Message, self).__init__()
 
+    if tow0 & 1:
+      logger.error("Initial ToW is not multiple of 2")
+
     self.encoder = ConvEncoder27()
-    self.n_msg = n_msg
+    self.msgCount = 0
     self.n_prefixBits = n_prefixBits
-    prefix_len = n_prefixBits * 2
-    self.symbolData = numpy.ndarray(n_msg * 600 + prefix_len,
-                                    dtype=numpy.uint8)
-    self.symbolData.fill(0)
+    self.prn = prn
+    self.messageLen = n_prefixBits * 2
+    self.symbolData = numpy.zeros(self.messageLen, dtype=numpy.uint8)
 
-    prefixBits = numpy.ndarray(self.n_prefixBits, dtype=numpy.uint8)
-    prefixBits.fill(0)
+    prefixBits = numpy.zeros(self.n_prefixBits, dtype=numpy.uint8)
     prefixBits[0::2] = 1
-    self.symbolData[0:prefix_len] = self.encoder.encode(prefixBits)
+    self.symbolData[:] = self.encoder.encode(prefixBits)
+    self.nextTow = tow0
+    self.addMessages(n_msg)
 
-    tow = tow0
-    msg_id = 0
+  def __str__(self, *args, **kwargs):
+    '''
+    Formats object as string literal
 
-    for i in range(prefix_len, self.n_msg * 600 + prefix_len, 600):
-      cnav_msg = CNavRawMsg.generate(prn, msg_id, tow)
-      msg_id += 1
-      tow += 2
-      # print "CNAV=", cnav_msg
-      encoded = self.encoder.encode(cnav_msg)
-      # print "ENC=", encoded
-      self.symbolData[i:i + 600] = encoded
-    self.messageLen = len(self.symbolData)
-
-    print self.symbolData
+    Returns
+    -------
+    string
+      String representation of the object
+    '''
+    return "GPS CNAV: prn=%d pref=%d tow=%d" % \
+           (self.prn, self.n_prefixBits, self.nextTow)
 
   def getDataBits(self, dataAll_idx):
     '''
@@ -167,22 +177,45 @@ class Message(object):
     numpy.ndarray(dtype=numpy.uint8)
       Vector of data bits
     '''
+
+    lastIdx = dataAll_idx[-1]
+    if lastIdx >= self.messageLen:
+      # Grow data bits
+      delta = lastIdx - self.messageLen + 1
+      newMsgCount = delta / 600
+      if delta % 600:
+        newMsgCount += 1
+      self.addMessages(newMsgCount)
+
     # numpy.take degrades performance a lot over time.
     # return numpy.take(self.symbolData, dataAll_idx , mode='wrap')
-    return self.symbolData[dataAll_idx % self.messageLen]
+    return self.symbolData[dataAll_idx]
 
+  def addMessages(self, newMsgCount):
+    '''
+    Generate additional CNAV messages
 
-def __main():
-  #   src = numpy.ndarray(128 * 1024, dtype=numpy.uint8)
-  #   src[1::2] = 0
-  #   src[0::2] = 1
-  #   t2 = time.time()
-  #   enc3 = ConvEncoder27().encode(src)
-  #   t3 = time.time()
-  # cnav_msg = CNavRawMsg()
-  print CNavRawMsg.generate()
+    This method generates and encodes additional CNAV messages. The message
+    contents is encoded using 2-7 convolution encoder and added to the internal
+    buffer.
 
-  print "Done"
-
-if __name__ == '__main__':
-  __main()
+    Parameters
+    ----------
+    newMsgCount : int
+      Number of messages to generate
+    '''
+    newMessageLen = newMsgCount * 600 + self.messageLen
+    newSymbolData = numpy.ndarray(newMessageLen, dtype=numpy.uint8)
+    newSymbolData[:self.messageLen] = self.symbolData
+    for i in range(self.messageLen, newMessageLen, 600):
+      logger.info("Generating CNAV message: prn=%d tow=%d msg_id=%d" %
+                  (self.prn, self.nextTow, 0))
+      cnav_msg = CNavRawMsg.generate(self.prn, 0, self.nextTow)
+      self.nextTow += 2
+      if self.nextTow == 7 * 24 * 60 * 10:
+        self.nextTow = 0
+      encoded = self.encoder.encode(cnav_msg)
+      newSymbolData[i:i + 600] = encoded
+    self.messageLen = newMessageLen
+    self.symbolData = newSymbolData
+    self.msgCount += newMsgCount

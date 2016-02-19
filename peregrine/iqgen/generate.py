@@ -24,6 +24,11 @@ import time
 # import threading
 import multiprocessing
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class Task(object):
   '''
   Period computation task. This object performs a batch computation of signal
@@ -54,7 +59,8 @@ class Task(object):
     self.signalFilters = signalFilters
     self.generateDebug = generateDebug
     self.noiseSigma = noiseSigma
-    self.signals = scipy.ndarray((4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
+    self.signals = scipy.ndarray(
+        (4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
     if noiseSigma is not None:
       # Initialize signal array with noise
       self.noise = noiseSigma * scipy.randn(4, outputConfig.SAMPLE_BATCH_SIZE)
@@ -83,7 +89,7 @@ class Task(object):
 
     userTime0_s = self.userTime0_s
     userTimeX_s = userTime0_s + float(self.nSamples) / \
-                                float(outputConfig.SAMPLE_RATE_HZ)
+        float(outputConfig.SAMPLE_RATE_HZ)
 
     # print "SPACE:", userTime0_s, userTimeX_s, self.nSamples
 
@@ -126,6 +132,8 @@ class Task(object):
     return (inputParams, sigs, debugData)
 
 # class Worker(threading.Thread):
+
+
 class Worker(multiprocessing.Process):
 
   def __init__(self, outputConfig, signalSources, noiseSigma, signalFilters, generateDebug):
@@ -166,7 +174,8 @@ class Worker(multiprocessing.Process):
         self.queueOut.put(result)
       except:
         exType, exValue, exTraceback = sys.exc_info()
-        traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
+        traceback.print_exception(
+            exType, exValue, exTraceback, file=sys.stderr)
         self.queueOut.put(None)
         self.queueIn.close()
         self.queueOut.close()
@@ -178,6 +187,7 @@ class Worker(multiprocessing.Process):
     self.queueIn.close()
     self.queueOut.close()
     sys.exit(0)
+
 
 def computeTimeIntervalS(outputConfig):
   '''
@@ -194,7 +204,7 @@ def computeTimeIntervalS(outputConfig):
     Generation interval duration in seconds
   '''
   deltaTime_s = float(outputConfig.SAMPLE_BATCH_SIZE) / \
-                outputConfig.SAMPLE_RATE_HZ
+      outputConfig.SAMPLE_RATE_HZ
   return deltaTime_s
 
 
@@ -267,6 +277,8 @@ def generateSamples(outputFile,
     print "    .l2_doppler: {} hz".format(_d2)
     print "    .l1_chip:    {}".format(_c1)
     print "    .l2_chip:    {}".format(_c2)
+    print "    .l1_message: {}".format(_sv.getL1CAMessage())
+    print "    .l2_message: {}".format(_sv.getL2CMessage())
     print "  .doppler: {}".format(_sv.doppler)
     print "}"
 
@@ -274,9 +286,31 @@ def generateSamples(outputFile,
   _count = 0l
 
   if SNR is not None:
-    Nsigma = scipy.sqrt(1. / (4. * 10. ** (SNR / 10.)))
+    sourcePower = 0.
+    for sv in sv_list:
+      svMeanPower = sv.getAmplitude().computeMeanPower()
+      sourcePower += svMeanPower
+      logger.debug("[%s] Estimated mean power is %f" %
+                   (sv.getSvName(), svMeanPower))
+    meanPower = sourcePower / len(sv_list)
+    meanAmplitude = scipy.sqrt(meanPower)
+    logger.debug("Estimated total signal power is %f, mean %f, mean amplitude %f" %
+                 (sourcePower, meanPower, meanAmplitude))
+
+    # Nsigma and while noise amplitude computation: check if the Nsigma is
+    # actually a correct value for white noise with normal distribution.
+    Nsigma = scipy.sqrt(meanPower / (2. * 10. ** (float(SNR) / 10.)))
+    logger.info("Selected noise sigma %f for SNR %f" % (Nsigma, float(SNR)))
+    noisePower = scipy.square(Nsigma)
+
+    for sv in sv_list:
+      svMeanPower = sv.getAmplitude().computeMeanPower()
+      svSNR = 10. * scipy.log10(svMeanPower / (sourcePower + noisePower) / 2.)
+      logger.info("[%s] Estimated SNR is %f" % (sv.getSvName(), svSNR))
+
   else:
     Nsigma = None
+    logger.noise("SNR is not provider, noise is not generated.")
 
   # Check which bands are enabled, configure band-specific parameters
   bands = [outputConfig.GPS.L1, outputConfig.GPS.L2]  # Supported bands
@@ -309,10 +343,10 @@ def generateSamples(outputFile,
   else:
     workerPool = None
     task = Task(outputConfig,
-                 sv_list,
-                 noiseSigma=Nsigma,
-                 signalFilters=lpf,
-                 generateDebug=debugFlag)
+                sv_list,
+                noiseSigma=Nsigma,
+                signalFilters=lpf,
+                generateDebug=debugFlag)
     maxTaskListSize = 1
 
   workerPutIndex = 0
@@ -337,10 +371,11 @@ def generateSamples(outputFile,
         # Last interval may contain less than full batch size of samples
         sampleCount = nSamples - totalSampleCounter
         userTimeX_s = userTime0_s + float(sampleCount) / \
-                                    outputConfig.SAMPLE_RATE_HZ
+            outputConfig.SAMPLE_RATE_HZ
 
       params = (userTime0_s, sampleCount, totalSampleCounter)
-      # print ">>> ", userTime0_s, sampleCount, totalSampleCounter, workerPutIndex
+      # print ">>> ", userTime0_s, sampleCount, totalSampleCounter,
+      # workerPutIndex
       if workerPool is not None:
         workerPool[workerPutIndex].queueIn.put(params)
         workerPutIndex = (workerPutIndex + 1) % threadCount
@@ -394,7 +429,7 @@ def generateSamples(outputFile,
       userTimeAll_s = debugData[0]
       for smpl_idx in range(_sampleCount):
         logFile.write("{},{},".format(_firstSampleIndex + smpl_idx,
-                                       userTimeAll_s[smpl_idx]))
+                                      userTimeAll_s[smpl_idx]))
         for svIdx in range(len(sv_list)):
           # signalSource = signalSources[svIdx]
           sv_bands = debugData[svIdx]
@@ -404,9 +439,9 @@ def generateSamples(outputFile,
             idx = band[2]
             codes = band[3]
             logFile.write("{},{},{},{}".format(sv_sigs[smpl_idx],
-                                                doppler[smpl_idx],
-                                                idx[smpl_idx],
-                                                codes[smpl_idx]))
+                                               doppler[smpl_idx],
+                                               idx[smpl_idx],
+                                               codes[smpl_idx]))
         # End of line
         logFile.write("\n")
 
@@ -429,7 +464,8 @@ def generateSamples(outputFile,
   if len(encodedSamples) > 0:
     encodedSamples.tofile(outputFile)
 
-  if debugFlag: logFile.close()
+  if debugFlag:
+    logFile.close()
 
   if workerPool is not None:
     for worker in workerPool:
@@ -440,7 +476,8 @@ def generateSamples(outputFile,
         print "Statistics:", statistics
       except:
         exType, exValue, exTraceback = sys.exc_info()
-        traceback.print_exception(exType, exValue, exTraceback, file=sys.stderr)
+        traceback.print_exception(
+            exType, exValue, exTraceback, file=sys.stderr)
       worker.queueIn.close()
       worker.queueOut.close()
       worker.terminate()
