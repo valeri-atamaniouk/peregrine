@@ -180,10 +180,10 @@ def track(samples, channels,
     )
 
     lock_detect = swiftnav.track.LockDetector(
-                     k1 = lock_detect_params["k1"] * coherent_ms,
-                     k2 = lock_detect_params["k2"],
-                     lp = lock_detect_params["lp"],
-                     lo = lock_detect_params["lo"]);
+        k1=lock_detect_params["k1"] * coherent_ms,
+        k2=lock_detect_params["k2"],
+        lp=lock_detect_params["lp"],
+        lo=lock_detect_params["lo"])
 
     # Estimate initial code freq via aiding from acq carrier freq
     if isL1CA:
@@ -236,7 +236,7 @@ def track(samples, channels,
         # For L1 C/A there are coherent and non-coherent tracking options.
         if stage1 and \
            stage2_coherent_ms and \
-           nav_msg.bit_phase == nav_msg.bit_phase_ref:
+           nav_bit_sync.bit_phase == nav_bit_sync.bit_phase_ref:
           # print "PRN %02d transition to stage 2 at %d ms" % (chan.prn+1,
           # ms_tracked)
           stage1 = False
@@ -284,23 +284,34 @@ def track(samples, channels,
         P += P_
         L += L_
 
-        if chan.signal == 'l2c': # only one 20 ms coherent integration time for L2C
+        # only one 20 ms coherent integration time for L2C
+        if chan.signal == 'l2c':
           break
 
       # Update PLL lock detector
       lock_detect_outo, lock_detect_outp = lock_detect.update(P.real, P.imag,
-                                                                coherent_ms)
+                                                              coherent_ms)
 
       loop_filter.update(E, P, L)
       track_result.coherent_ms[i] = coherent_ms
 
       if isL1CA:
-        nav_bit_sync.update(np.real(P), coherent_ms)
+        sync, bit = nav_bit_sync.update(np.real(P), coherent_ms)
+        if sync:
+          # print "Got bit sync: %d" % bit
 
-        # TODO - Is this the correct way to call nav_msg.update?
-        tow = nav_msg.update(np.real(P) >= 0)
+          # TODO - Is this the correct way to call nav_msg.update?
+          tow = nav_msg.update(bit ^ 1)
+          # print "BITS=", nav_msg.getSubframeBits()
+          if tow >= 0:
+            print "TOW=", tow
+          if nav_msg.subframe_ready():
+            print "subframe ready"
+        else:
+          tow = -1
         nav_msg_bit_phase_ref[i] = nav_msg.bit_phase_ref
-        track_result.tow[i] = tow or (track_result.tow[i - 1] + coherent_ms)
+        track_result.tow[i] = tow if tow >= 0 else (
+            track_result.tow[i - 1] + coherent_ms)
       elif isL2C:
         symbol = 0xFF if np.real(P) >= 0 else 0x00
         res, delay = cnav_msg_decoder.decode(symbol, cnav_msg)
@@ -426,8 +437,12 @@ class NavBitSync:
     if not self.synced:
       self.update_bit_sync(corr, ms)
     if self.bit_phase == self.bit_phase_ref:
-      self.bits.append(1 if self.bit_integrate > 0 else 0)
+      bit = 1 if self.bit_integrate > 0 else 0
+      self.bits.append(bit)
       self.bit_integrate = 0
+      return True, bit
+    else:
+      return False, None
 
   def update_bit_sync(self, corr, ms):
     raise NotImplementedError
