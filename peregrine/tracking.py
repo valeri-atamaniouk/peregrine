@@ -20,6 +20,7 @@ import swiftnav.track
 import swiftnav.correlate
 import swiftnav.nav_msg
 import swiftnav.cnav_msg
+import swiftnav.ephemeris
 import defaults
 
 import logging
@@ -304,9 +305,17 @@ def track(samples, channels,
           tow = nav_msg.update(bit ^ 1)
           # print "BITS=", nav_msg.getSubframeBits()
           if tow >= 0:
-            print "TOW=", tow
+            logger.info("L1 C/A ToW %d" % tow)
           if nav_msg.subframe_ready():
-            print "subframe ready"
+            eph = swiftnav.ephemeris.Ephemeris()
+            res = nav_msg.process_subframe(eph)
+            if res < 0:
+              logger.error("Subframe decoding error %d", res)
+            elif res > 0:
+              logger.info("Subframe decoded")
+            else:
+              # Subframe decoding is in progress
+              pass
         else:
           tow = -1
         nav_msg_bit_phase_ref[i] = nav_msg.bit_phase_ref
@@ -323,7 +332,7 @@ def track(samples, channels,
                         cnav_msg.getAlert(),
                         delay))
           tow = cnav_msg.getTow() * 6000 + delay * 20
-          logger.debug("Current L2C ToW %d", tow)
+          logger.debug("L2C ToW %d", tow)
           track_result.tow[i] = tow
         else:
           track_result.tow[i] = track_result.tow[i - 1] + coherent_ms
