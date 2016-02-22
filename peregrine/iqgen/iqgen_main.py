@@ -16,7 +16,7 @@ import argparse
 import scipy.constants
 import numpy
 
-from peregrine.iqgen.satellite import GPS_SV
+from peregrine.iqgen.bits.satellite_gps import GPSSatellite
 
 # Doppler objects
 from peregrine.iqgen.bits.doppler_poly import zeroDoppler
@@ -56,6 +56,10 @@ from peregrine.iqgen.bits.encoder_gps import GPSL2TwoBitsEncoder
 from peregrine.iqgen.bits.encoder_gps import GPSL1L2TwoBitsEncoder
 
 from peregrine.iqgen.generate import generateSamples
+
+from peregrine.iqgen.bits.satellite_factory import factoryObject as satelliteFO
+
+import json
 
 
 def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
@@ -111,7 +115,7 @@ def prepareArgsParser():
         namespace.gps_sv = []
 
       # Add SV to the tail of the list.
-      sv = GPS_SV(int(values))
+      sv = GPSSatellite(int(values))
       namespace.gps_sv.append(sv)
 
       # Reset all configuration parameters
@@ -283,6 +287,49 @@ def prepareArgsParser():
       sv.setL1CAMessage(message)
       sv.setL2CMessage(message)
 
+  class SaveConfigAction(argparse.Action):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(SaveConfigAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+
+      gps_sv = namespace.gps_sv
+
+      encoded_gps_sv = [satelliteFO.toMapForm(sv) for sv in gps_sv]
+
+      data = {'type': 'Namespace',
+              'gps_sv': encoded_gps_sv,
+              'profile': namespace.profile,
+              'encoder': namespace.encoder,
+              'chip_delay': namespace.chip_delay,
+              'symbol_delay': namespace.symbol_delay,
+              'generate': namespace.generate,
+              'snr': namespace.snr,
+              'lpf': namespace.lpf
+              }
+      json.dump(data, values, indent=2)
+      values.close()
+      namespace.no_run = True
+
+  class LoadConfigAction(argparse.Action):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(LoadConfigAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+      loaded = json.load(values)
+      namespace.profile = loaded['profile']
+      namespace.encoder = loaded['encoder']
+      namespace.chip_delay = loaded['chip_delay']
+      namespace.symbol_delay = loaded['symbol_delay']
+      namespace.generate = loaded['generate']
+      namespace.snr = loaded['snr']
+      namespace.lpf = loaded['lpf']
+      namespace.gps_sv = [
+          satelliteFO.fromMapForm(sv) for sv in loaded['gps_sv']]
+      values.close()
+
   parser = argparse.ArgumentParser(
       description="Signal generator", usage='%(prog)s [options]')
   parser.add_argument('--gps-sv',
@@ -386,8 +433,23 @@ def prepareArgsParser():
                       help="Output profile configuration")
   parser.add_argument('-j', '--jobs',
                       type=int,
-                      default=1,
+                      default=0,
                       help="Use parallel threads")
+
+  parser.add_argument('--save-config',
+                      type=argparse.FileType('wt'),
+                      help="Store configuration into file (implies --no-run)",
+                      action=SaveConfigAction)
+
+  parser.add_argument('--load-config',
+                      type=argparse.FileType('rt'),
+                      help="Restore configuration from file",
+                      action=LoadConfigAction)
+
+  parser.add_argument('--no-run',
+                      action="store_true",
+                      default=False,
+                      help="Do not generate output.")
 
   return parser
 
@@ -398,6 +460,9 @@ def main():
 
   parser = prepareArgsParser()
   args = parser.parse_args()
+
+  if args.no_run:
+    return 0
 
   if args.output is None:
     parser.print_help()
