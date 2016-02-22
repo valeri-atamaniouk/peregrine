@@ -44,8 +44,10 @@ class Message(object):
     '''
     super(Message, self).__init__()
     self.prn = prn
-    self.messageCount = 0
     self.n_prefixBits = n_prefixBits
+    self.n_msg0 = n_msg
+    self.tow0 = tow0
+    self.messageCount = 0
     self.messageLen = n_prefixBits
     self.nextTow = tow0
     self.nextMsgId = 0

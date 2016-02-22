@@ -30,6 +30,7 @@ class Message(object):
       Value for the bits. 1 for 0 bits, -1 for 1 bits.
     '''
     super(Message, self).__init__()
+    self.bitValue = bitValue
     self.binValue = 1 if bitValue < 0 else 0
 
   def __str__(self, *args, **kwargs):

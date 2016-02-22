@@ -138,10 +138,13 @@ class Message(object):
     if tow0 & 1:
       logger.error("Initial ToW is not multiple of 2")
 
+    self.prn = prn
+    self.tow0 = tow0
+    self.n_msg0 = n_msg
+    self.n_prefixBits = n_prefixBits
+
     self.encoder = ConvEncoder27()
     self.msgCount = 0
-    self.n_prefixBits = n_prefixBits
-    self.prn = prn
     self.messageLen = n_prefixBits * 2
     self.symbolData = numpy.zeros(self.messageLen, dtype=numpy.uint8)
 

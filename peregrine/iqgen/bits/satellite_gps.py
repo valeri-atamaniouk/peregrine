@@ -7,64 +7,23 @@
 # THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
-from peregrine.iqgen.bits.amplitude_poly import AmplitudePoly
 """
-The :mod:`peregrine.iqgen.satellite` module contains classes and functions
-related to satellite configuration.
+The :mod:`peregrine.iqgen.bits.satellite_gps` module contains classes and
+functions related to GPS satellite configuration.
 
 """
 import peregrine.iqgen.bits.signals as signals
-
-from peregrine.iqgen.bits.doppler_poly import Doppler
 from peregrine.iqgen.bits.message_const import Message
 from peregrine.iqgen.bits.prn_gps_l1ca import PrnCode as GPS_L1CA_Code
 from peregrine.iqgen.bits.prn_gps_l2c import PrnCode as GPS_L2C_Code
+from peregrine.iqgen.bits.satellite_base import Satellite
 
 import numpy
-
-
-class SV(object):
-  '''
-  Satellite object.
-
-  Satellite object combines speed/position computation and data generation for
-  all supported bands.
-  '''
-
-  def __init__(self, svName):
-    '''
-    Constructor.
-
-    Parameters
-    ----------
-    svNo : string
-      Satellite name
-    '''
-    super(SV, self).__init__()
-    self.svName = svName
-    self.doppler = Doppler(())
-
-  def getSvName(self):
-    '''
-    Returns satellite name.
-
-    Returns
-    -------
-    string
-      Satellite name
-    '''
-    return self.svName
-
-  def __str__(self):
-    return self.getSvName()
-
-  def __repr__(self):
-    return self.getSvName()
 
 DEFAULT_MESSAGE = Message(1)
 
 
-class GPS_SV(SV):
+class GPSSatellite(Satellite):
   '''
   GPS satellite object.
   '''
@@ -78,7 +37,7 @@ class GPS_SV(SV):
     prnNo : int
       GPS satellite number for selecting PRN.
     '''
-    super(GPS_SV, self).__init__("GPS {}".format(prnNo))
+    super(GPSSatellite, self).__init__("GPS {}".format(prnNo))
     self.prn = prnNo
     self.l1caCode = GPS_L1CA_Code(prnNo)
     self.l2cCode = GPS_L2C_Code(prnNo)
@@ -88,30 +47,7 @@ class GPS_SV(SV):
     self.l2cMessage = DEFAULT_MESSAGE
     self.time0S = 0.
     self.pr0M = 0.
-    self.amplitude = AmplitudePoly(())
     self.phaseShift = 0.
-
-  def setAmplitude(self, amplitude):
-    '''
-    Changes amplitude
-
-    Parameters
-    ----------
-    amplitude : float
-      amplitude value for signal generation
-    '''
-    self.amplitude = amplitude
-
-  def getAmplitude(self):
-    '''
-    Provides amplitude object
-
-    Returns
-    -------
-    object
-      Amplitude object
-    '''
-    return self.amplitude
 
   def setL1CAEnabled(self, enableFlag):
     '''
@@ -124,6 +60,17 @@ class GPS_SV(SV):
     '''
     self.l1caEnabled = enableFlag
 
+  def isL1CAEnabled(self):
+    '''
+    Tests if L1 C/A signal generation is enabled
+
+    Returns
+    -------
+    bool
+      True, when L1 C/A signal generation is enabled, False otherwise
+    '''
+    return self.l1caEnabled
+
   def setL2CEnabled(self, enableFlag):
     '''
     Enables or disable GPS L2 C sample generation
@@ -134,6 +81,17 @@ class GPS_SV(SV):
       Flag to enable (True) or disable (False) GPS L2 C samples
     '''
     self.l2cEnabled = enableFlag
+
+  def isL2CEnabled(self):
+    '''
+    Tests if L2 C signal generation is enabled
+
+    Returns
+    -------
+    bool
+      True, when L2 C signal generation is enabled, False otherwise
+    '''
+    return self.l2cEnabled
 
   def setL1CAMessage(self, message):
     '''
@@ -245,9 +203,9 @@ class GPS_SV(SV):
     '''
     result = None
     if bandIndex == outputConfig.GPS.L1.INDEX:
-      result = self.l1caEnabled
+      result = self.isL1CAEnabled()
     elif bandIndex == outputConfig.GPS.L2.INDEX:
-      result = self.l2cEnabled
+      result = self.isL2CEnabled()
     else:
       result = False
     return result
