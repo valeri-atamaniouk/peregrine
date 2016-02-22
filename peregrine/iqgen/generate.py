@@ -310,7 +310,7 @@ def generateSamples(outputFile,
 
   else:
     Nsigma = None
-    logger.noise("SNR is not provider, noise is not generated.")
+    logger.info("SNR is not provided, noise is not generated.")
 
   # Check which bands are enabled, configure band-specific parameters
   bands = [outputConfig.GPS.L1, outputConfig.GPS.L2]  # Supported bands
