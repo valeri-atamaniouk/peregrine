@@ -133,6 +133,7 @@ def prepareArgsParser():
       namespace.doppler_value = 0.
       namespace.doppler_speed = 0.
       namespace.distance = 0.
+      namespace.tec = 50.
       namespace.doppler_amplitude = 0.
       namespace.doppler_period = 1.
 
@@ -199,18 +200,21 @@ def prepareArgsParser():
         raise ValueError("Signal band must be specified before doppler")
 
       if namespace.doppler_type == "zero":
-        doppler = zeroDoppler(namespace.distance, frequency_hz)
+        doppler = zeroDoppler(namespace.distance, namespace.tec, frequency_hz)
       elif namespace.doppler_type == "const":
         doppler = constDoppler(namespace.distance,
+                               namespace.tec,
                                frequency_hz,
                                namespace.doppler_value)
       elif namespace.doppler_type == "linear":
         doppler = linearDoppler(namespace.distance,
+                                namespace.tec,
                                 frequency_hz,
                                 namespace.doppler_value,
                                 namespace.doppler_speed)
       elif namespace.doppler_type == "sine":
         doppler = sineDoppler(namespace.distance,
+                              namespace.tec,
                               frequency_hz,
                               namespace.doppler_value,
                               namespace.doppler_amplitude,
@@ -401,7 +405,12 @@ def prepareArgsParser():
                       action=UpdateDopplerType)
   parser.add_argument('--distance',
                       type=float,
-                      help="Distance in meters for doppler delay (initial)",
+                      help="Distance in meters for signal delay (initial)",
+                      action=UpdateDopplerType)
+  parser.add_argument('--tec',
+                      type=float,
+                      help="Ionosphere TEC for signal delay"
+                           " (electrons per meter^2)",
                       action=UpdateDopplerType)
   parser.add_argument('--doppler-amplitude',
                       type=float,
@@ -418,11 +427,13 @@ def prepareArgsParser():
                       action=UpdateAmplitudeType)
   parser.add_argument('--amplitude-a0',
                       type=float,
-                      help="Amplitude coefficient (a0 for polynomial; offset for sine)",
+                      help="Amplitude coefficient (a0 for polynomial;"
+                           " offset for sine)",
                       action=UpdateAmplitudeType)
   parser.add_argument('--amplitude-a1',
                       type=float,
-                      help="Amplitude coefficient (a1 for polynomial, amplitude for size)",
+                      help="Amplitude coefficient (a1 for polynomial,"
+                           " amplitude for size)",
                       action=UpdateAmplitudeType)
   parser.add_argument('--amplitude-a2',
                       type=float,

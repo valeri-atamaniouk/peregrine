@@ -27,26 +27,41 @@ class Doppler(DopplerBase):
 
   TWO_PI = scipy.constants.pi * 2
 
-  def __init__(self, coeffs):
+  def __init__(self, distance0_m, tec_epm2, coeffs):
     '''
     Constructs doppler control object for linear acceleration.
 
     Parameters
     ----------
-    coeffs : tuple
+    distance0_m : float
+      Distance to object in meters at time 0.
+    tec_epm2 : float
+      Total free electron content integrated along line of sight to the object
+      in electrons per m^2.
+    coeffs : array-like
       Phase shift coefficients. Phase chift will be computed as:
       C_n*t^n + C_(n-1)^(n-1) + ... + C_2*t^2 + C_1*t + C_0
       C_n..C_0 - values for speed of light
     '''
-    super(Doppler, self).__init__()
+    super(Doppler, self).__init__(distance0_m=distance0_m,
+                                  tec_epm2=tec_epm2)
     self.coeffs = tuple([x for x in coeffs])
     self.n_coeffs = len(coeffs)
     self.speedPoly = None
     self.distancePoly = None
     if self.n_coeffs > 0:
-      self.distancePoly = numpy.poly1d(coeffs)
+      new_coeffs = []
+      self.n_coeffs += 1
+      for idx, c in enumerate(coeffs):
+        order = self.n_coeffs - idx - 1
+        new_coeffs.append(c / order)
+      new_coeffs.append(0.)
+      self.distancePoly = numpy.poly1d(new_coeffs)
+      self.distanceCoeffs = new_coeffs
       if self.n_coeffs > 1:
-        self.speedPoly = numpy.poly1d(coeffs[:-1])
+        self.speedPoly = numpy.poly1d(coeffs)
+    else:
+      self.distanceCoeffs = None
 
   def __str__(self):
     '''
@@ -141,6 +156,7 @@ class Doppler(DopplerBase):
       Code combined with data
     '''
 
+    userTimeAll_s = self.applySignalDelays(userTimeAll_s, carrierSignal)
     n_samples = len(userTimeAll_s)
 
     # Computing doppler coefficients
@@ -149,7 +165,7 @@ class Doppler(DopplerBase):
     algMode = 1
     if algMode == 1:
       doppler = numpy.ndarray(n_samples, dtype=self.dtype)
-      coeffs = self.coeffs
+      coeffs = self.distanceCoeffs
       n_coeffs = self.n_coeffs
       if n_coeffs > 2:
         # Linear doppler acceleration and further higher-order changes
@@ -222,7 +238,11 @@ class Doppler(DopplerBase):
     return (signal, doppler, chipAll_idx, chips)
 
 
-def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
+def linearDoppler(distance0_m,
+                  tec_epm2,
+                  frequency_hz,
+                  doppler0_hz,
+                  dopplerChange_hzps):
   '''
   Makes an object that corresponds to linear doppler change.
 
@@ -243,12 +263,14 @@ def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
     object that implments constant acceleration logic.
   '''
   speed0_mps = -scipy.constants.c / frequency_hz * doppler0_hz
-  accel_mps2 = -scipy.constants.c / frequency_hz * dopplerChange_hzps / 2.
+  accel_mps2 = -scipy.constants.c / frequency_hz * dopplerChange_hzps
 
-  return Doppler((accel_mps2, speed0_mps, distance0_m))
+  return Doppler(distance0_m=distance0_m,
+                 tec_epm2=tec_epm2,
+                 coeffs=(accel_mps2, speed0_mps))
 
 
-def constDoppler(distance0_m, frequency_hz, doppler_hz):
+def constDoppler(distance0_m, tec_epm2, frequency_hz, doppler_hz):
   '''
   Makes an object that corresponds to a constant doppler value.
 
@@ -267,10 +289,10 @@ def constDoppler(distance0_m, frequency_hz, doppler_hz):
     Object that implements constant speed logic.
   '''
   speed_mps = -scipy.constants.c / frequency_hz * doppler_hz
-  return Doppler((speed_mps, distance0_m))
+  return Doppler(distance0_m=distance0_m, tec_epm2=tec_epm2, coeffs=(speed_mps))
 
 
-def zeroDoppler(distance_m, frequency_hz):
+def zeroDoppler(distance_m, tec_epm2, frequency_hz):
   '''
   Makes an object that corresponds to zero doppler change.
 
@@ -290,7 +312,4 @@ def zeroDoppler(distance_m, frequency_hz):
   Doppler
     object that implments constant acceleration logic.
   '''
-  if distance_m is not None and distance_m != 0.:
-    return Doppler((distance_m,))
-  else:
-    return Doppler(())
+  return Doppler(distance0_m=distance_m, tec_epm2=tec_epm2, coeffs=())

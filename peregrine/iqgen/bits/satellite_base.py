@@ -13,7 +13,7 @@ The :mod:`peregrine.iqgen.bits.satellite_base` module contains classes and
 functions related to satellite base object.
 
 """
-from peregrine.iqgen.bits.doppler_poly import Doppler
+from peregrine.iqgen.bits.doppler_poly import zeroDoppler
 from peregrine.iqgen.bits.amplitude_poly import AmplitudePoly
 
 
@@ -36,7 +36,7 @@ class Satellite(object):
     '''
     super(Satellite, self).__init__()
     self.svName = svName
-    self.doppler = Doppler(())
+    self.doppler = zeroDoppler(0., 0., 1.)
     self.amplitude = AmplitudePoly(())
 
   def getDoppler(self):

@@ -28,16 +28,70 @@ class DopplerBase(object):
   # Internal value
   __startIndex = numpy.iinfo(long).min
 
-  def __init__(self, dtype=numpy.longdouble):
+  def __init__(self, distance0_m=0., tec_epm2=50.,  dtype=numpy.longdouble):
     '''
     Constructs doppler base object for movement control.
 
     Parameters
+    ----------
+    distance0_m : float
+      Distance to object in meters at time 0.
+    tec_epm2 : float
+      Total free electron content integrated along line of sight to the object
+      in electrons per m^2.
     dtype : object, optional
       Numpy type for sample computations.
     '''
     super(DopplerBase, self).__init__()
+    self.distance0_m = distance0_m
+    self.tec_epm2 = tec_epm2
     self.dtype = dtype
+
+  def computeSignalDelayS(self, frequency_hz):
+    '''
+    Computes delay in seconds for an epoch time (time 0) for a given carrier
+    frequency.
+
+    The method computes signal delay, which is a sum of the following
+    parameters:
+    - Distance to object divided per speed of light
+    - Ionospheric delay according to TEC value for the given frequency
+    - Tropospheric delay
+
+    Parameters
+    ----------
+    frequency_hz : float
+      Signal frequency in hertz.
+
+    Returns
+    -------
+    float
+      Signal delay in seconds. 
+    '''
+    distanceDelay_s = self.distance0_m / scipy.constants.c
+    ionoDelay_s = 40.3 * self.tec_epm2 / numpy.square(frequency_hz)
+    delay_s = distanceDelay_s + ionoDelay_s
+    return delay_s
+
+  def applySignalDelays(self, userTimeAll_s, carrierSignal):
+    '''
+    Modifies time vector in accordance to signal delays due to distance and
+    atmospheric delays.
+
+    Parameters
+    ----------
+    userTimeAll_s : numpy.ndvector(shape=(n), dtype=numpy.float)
+      Vector of time stamps for which samples are generated
+    carrierSignal : object
+      Signal parameters object
+
+    Returns
+    -------
+    numpy.ndvector(shape=(n), dtype=numpy.float)
+      Vector of sample time stamps updated according to computed delays.
+    '''
+    signalDelay_s = self.computeSignalDelayS(carrierSignal.CENTER_FREQUENCY_HZ)
+    return userTimeAll_s - signalDelay_s
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -58,7 +112,7 @@ class DopplerBase(object):
 
   def computeSpeedMps(self, svTime_s):
     '''
-    Computes speed along the vector to satellite in meters per second.
+    Computes speed along the vecto2r to satellite in meters per second.
 
     Parameters
     ----------

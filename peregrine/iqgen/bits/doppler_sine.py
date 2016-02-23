@@ -26,15 +26,17 @@ class Doppler(DopplerBase):
 
   TWO_PI = scipy.constants.pi * 2.
 
-  def __init__(self, distance0_m, speed0_mps, amplutude_mps, period_s):
+  def __init__(self, distance0_m,  tec_epm2, speed0_mps, amplutude_mps, period_s):
     '''
     Constructs doppler control object for linear acceleration.
 
     Parameters
     ----------
     distance0_m : float
-      Initial distance to satellite at time 0 in meters for computing signal
-      phase and delay.
+      Distance to object in meters at time 0.
+    tec_epm2 : float
+      Total free electron content integrated along line of sight to the object
+      in electrons per m^2.
     speed0_mps : float
       Speed of satellite at time 0 in meters per second.
     amplutude_mps : float
@@ -42,8 +44,8 @@ class Doppler(DopplerBase):
     period_s : float
       Period of change
     '''
-    super(Doppler, self).__init__()
-    self.distance0_m = distance0_m
+    super(Doppler, self).__init__(distance0_m=distance0_m,
+                                  tec_epm2=tec_epm2)
     self.speed0_mps = speed0_mps
     self.amplutude_mps = amplutude_mps
     self.period_s = period_s
@@ -57,8 +59,9 @@ class Doppler(DopplerBase):
     string
       Literal presentation of object
     '''
-    return "SineDoppler(distance0_m={}, speed0_mps={}, amplitude_mps={}, period_s={})".\
-        format(self.distance0_m, self.speed0_mps,
+    return "SineDoppler(distance0_m={}, tec_epm2={}, " \
+           "speed0_mps={}, amplitude_mps={}, period_s={})".\
+        format(self.distance0_m, self.tec_epm2, self.speed0_mps,
                self.amplutude_mps, self.period_s)
 
   def __repr__(self):
@@ -70,10 +73,11 @@ class Doppler(DopplerBase):
     string
       Python expression presentation of object
     '''
-    return "Doppler({}, {}, {}, {})".format(self.distance0_m,
-                                            self.speed0_mps,
-                                            self.amplutude_mps,
-                                            self.period_s)
+    return "Doppler({}, {}, {}, {}, {})".format(self.distance0_m,
+                                                self.tec_epm2,
+                                                self.speed0_mps,
+                                                self.amplutude_mps,
+                                                self.period_s)
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -160,11 +164,13 @@ class Doppler(DopplerBase):
     # When Amplitude = 0 and D_0= 0 and D3 = 0
     # I(t) = F_i * t
 
+    userTimeAll_s = self.applySignalDelays(userTimeAll_s, carrierSignal)
+
     freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
     D_0 = self.speed0_mps * freqRatio
     D_1 = self.amplutude_mps * freqRatio / Doppler.TWO_PI * self.period_s
     D_2 = Doppler.TWO_PI / self.period_s
-    D_3 = self.distance0_m * freqRatio
+    # D_3 = 0.  # self.distance0_m * freqRatio
 
     algMode = 2
     if algMode == 1:
@@ -174,7 +180,7 @@ class Doppler(DopplerBase):
       phaseAll -= 1.
       phaseAll *= -D_1 * Doppler.TWO_PI
       phaseAll += (D_0 + ifFrequency_hz) * Doppler.TWO_PI * userTimeAll_s
-      phaseAll += 2 * scipy.constants.pi * D_3
+      # phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 2:
       doppler = D_2 * userTimeAll_s
       numpy.cos(doppler, out=doppler)
@@ -182,9 +188,9 @@ class Doppler(DopplerBase):
       chipAll_idx = numpy.copy(doppler)
       phaseAll = (-D_1 * Doppler.TWO_PI) * doppler
       C = (D_0 + ifFrequency_hz) * Doppler.TWO_PI
-      C2 = Doppler.TWO_PI * D_3
+      # C2 = Doppler.TWO_PI * D_3
       phaseAll += C * userTimeAll_s
-      phaseAll += C2
+      # phaseAll += C2
       # phaseAll += 2 * scipy.constants.pi * D_3
     elif algMode == 3:
       pass
@@ -200,7 +206,7 @@ class Doppler(DopplerBase):
     D_C0 = D_0 * chipFreqRatio
     D_C1 = D_1 * chipFreqRatio
     D_C2 = D_2  # * chipFreqRatio
-    D_C3 = D_3 * chipFreqRatio
+    # D_C3 = D_3 * chipFreqRatio
 
     if algMode == 1:
       chipAll_idx = userTimeAll_s * D_C2
@@ -208,13 +214,13 @@ class Doppler(DopplerBase):
       chipAll_idx -= 1.
       chipAll_idx *= -D_C1
       chipAll_idx += (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ) * userTimeAll_s
-      chipAll_idx += D_C3
+      # chipAll_idx += D_C3
     elif algMode == 2:
       # chipAll_idx = copy(..)
       chipAll_idx *= -D_C1
       C = (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ)
       chipAll_idx += C * userTimeAll_s
-      chipAll_idx + D_C3
+      # chipAll_idx += D_C3
     elif algMode == 3:
       pass
 
@@ -224,7 +230,7 @@ class Doppler(DopplerBase):
     return (signal, doppler, chipAll_idx, chips)
 
 
-def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dopplerPeriod_s):
+def sineDoppler(distance0_m, tec_epm2, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dopplerPeriod_s):
   '''
   Makes an object that corresponds to linear doppler change.
 
@@ -250,4 +256,4 @@ def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dop
   speed0_mps = dopplerCoeff * doppler0_hz
   amplitude_mps = dopplerCoeff * dopplerAmplitude_hz
 
-  return Doppler(distance0_m, speed0_mps, amplitude_mps, dopplerPeriod_s)
+  return Doppler(distance0_m, tec_epm2, speed0_mps, amplitude_mps, dopplerPeriod_s)

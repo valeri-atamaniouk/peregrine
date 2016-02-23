@@ -46,27 +46,36 @@ class ObjectFactory(object):
 
   def __PolyDoppler_ToMap(self, obj):
     data = {'type': 'PolyDoppler',
+            'distance0_m': obj.distance0_m,
+            'tec_epm2': obj.tec_epm2,
             'coeffs': obj.coeffs}
     return data
 
   def __SineDoppler_ToMap(self, obj):
     data = {'type': 'SineDoppler',
             'distance0_m': obj.distance0_m,
+            'tec_epm2': obj.tec_epm2,
             'speed0_mps': obj.speed0_mps,
             'amplutude_mps': obj.amplutude_mps,
             'period_s': obj.period_s}
     return data
 
   def __MapTo_PolyDoppler(self, data):
+    distance0_m = data['distance0_m']
+    tec_epm2 = data['tec_epm2']
     coeffs = data['coeffs']
-    return PolyDoppler(coeffs)
+    return PolyDoppler(distance0_m=distance0_m,
+                       tec_epm2=tec_epm2,
+                       coeffs=coeffs)
 
   def __MapTo_SineDoppler(self, data):
     distance0_m = data['distance0_m']
+    tec_epm2 = data['tec_epm2']
     speed0_mps = data['speed0_mps']
     amplutude_mps = data['amplutude_mps']
     period_s = data['period_s']
     return SineDoppler(distance0_m=distance0_m,
+                       tec_epm2=tec_epm2,
                        speed0_mps=speed0_mps,
                        amplutude_mps=amplutude_mps,
                        period_s=period_s)
