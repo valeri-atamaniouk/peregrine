@@ -13,6 +13,8 @@ related to radio interface parameters
 
 """
 
+from peregrine import defaults as peregrineDefaults
+
 
 class LowRateConfig(object):
   '''
@@ -169,8 +171,8 @@ class CustomRateConfig(object):
   GPS : object
     GPS band information
   '''
-  NAME = "Low rate configuration for fast tests"
-  SAMPLE_RATE_HZ = 5.5e6
+  NAME = "Custom configuration for fast tests"
+  SAMPLE_RATE_HZ = peregrineDefaults.sampling_freq
   SAMPLE_BATCH_SIZE = 100000
 
   class GPS(object):
@@ -195,7 +197,7 @@ class CustomRateConfig(object):
       INDEX : int
         Band index
       '''
-      INTERMEDIATE_FREQUENCY_HZ = 1.4e6  # 2.048e+6  # 2.048 MHz
+      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.IF
       INDEX = 0
 
     class L2(object):
@@ -209,5 +211,5 @@ class CustomRateConfig(object):
       INDEX : int
         Band index
       '''
-      INTERMEDIATE_FREQUENCY_HZ = 1.4e6
+      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.IF
       INDEX = 1
