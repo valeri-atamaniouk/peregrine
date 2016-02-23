@@ -41,6 +41,7 @@ class Task(object):
                outputConfig,
                signalSources,
                noiseSigma=None,
+               tcxo=None,
                signalFilters=None,
                generateDebug=False):
     '''
@@ -51,6 +52,8 @@ class Task(object):
     nSamples : long
     signalSources : array-like
     noiseSigma : float
+    tcxo : object, optional
+      TCXO control object
     signalFilters : array-like
     generateDebug : bool
     firstSampleIndex : long
@@ -61,6 +64,7 @@ class Task(object):
     self.signalFilters = signalFilters
     self.generateDebug = generateDebug
     self.noiseSigma = noiseSigma
+    self.tcxo = tcxo
     self.signals = scipy.ndarray(
         (4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
     if noiseSigma is not None:
@@ -86,19 +90,26 @@ class Task(object):
     outputConfig = self.outputConfig
     signalSources = self.signalSources
     signalFilters = self.signalFilters
+    tcxo = self.tcxo
+    firstSampleIndex = self.firstSampleIndex
+    finalSampleIndex = firstSampleIndex + self.nSamples
 
     generateDebug = self.generateDebug
 
     userTime0_s = self.userTime0_s
     userTimeX_s = userTime0_s + float(self.nSamples) / \
         float(outputConfig.SAMPLE_RATE_HZ)
-
-    # print "SPACE:", userTime0_s, userTimeX_s, self.nSamples
-
     userTimeAll_s = scipy.linspace(userTime0_s,
                                    userTimeX_s,
                                    self.nSamples,
                                    endpoint=False)
+
+    if tcxo:
+      tcxoTimeDrift_s = tcxo.computeTcxoTime(firstSampleIndex,
+                                             finalSampleIndex,
+                                             outputConfig)
+      if tcxoTimeDrift_s:
+        userTimeAll_s += tcxoTimeDrift_s
 
     noise = self.noise
     sigs = self.signals
@@ -133,12 +144,16 @@ class Task(object):
     inputParams = (self.userTime0_s, self.nSamples, self.firstSampleIndex)
     return (inputParams, sigs, debugData)
 
-# class Worker(threading.Thread):
-
 
 class Worker(multiprocessing.Process):
 
-  def __init__(self, outputConfig, signalSources, noiseSigma, signalFilters, generateDebug):
+  def __init__(self,
+               outputConfig,
+               signalSources,
+               noiseSigma,
+               tcxo,
+               signalFilters,
+               generateDebug):
     super(Worker, self).__init__()
     self.queueIn = multiprocessing.Queue()
     self.queueOut = multiprocessing.Queue()
@@ -147,6 +162,7 @@ class Worker(multiprocessing.Process):
     self.outputConfig = outputConfig
     self.signalSources = signalSources
     self.noiseSigma = noiseSigma
+    self.tcxo = tcxo
     self.signalFilters = signalFilters
     self.generateDebug = generateDebug
 
@@ -154,6 +170,7 @@ class Worker(multiprocessing.Process):
     task = Task(self.outputConfig,
                 self.signalSources,
                 noiseSigma=self.noiseSigma,
+                tcxo=self.tcxo,
                 signalFilters=self.signalFilters,
                 generateDebug=self.generateDebug)
 
@@ -217,6 +234,7 @@ def generateSamples(outputFile,
                     nSamples,
                     outputConfig,
                     SNR=None,
+                    tcxo=None,
                     lowPass=False,
                     logFile=None,
                     threadCount=1):
@@ -239,6 +257,8 @@ def generateSamples(outputFile,
     Output parameters
   SNR : float, optional
     When specified, adds random noise to the output.
+  tcxo : object, optional
+    When specified, controls TCXO drift
   lowPass : bool, optional
     Controls LPF signal post-processing. Disabled by default.
   debugLog : bool, optional
@@ -335,6 +355,7 @@ def generateSamples(outputFile,
     workerPool = [Worker(outputConfig,
                          sv_list,
                          Nsigma,
+                         tcxo,
                          lpf,
                          debugFlag) for _ in range(threadCount)]
 
@@ -346,6 +367,7 @@ def generateSamples(outputFile,
     task = Task(outputConfig,
                 sv_list,
                 noiseSigma=Nsigma,
+                tcxo=tcxo,
                 signalFilters=lpf,
                 generateDebug=debugFlag)
     maxTaskListSize = 1

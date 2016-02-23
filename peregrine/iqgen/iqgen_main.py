@@ -31,6 +31,10 @@ from peregrine.iqgen.bits.doppler_sine import sineDoppler
 from peregrine.iqgen.bits.amplitude_poly import AmplitudePoly
 from peregrine.iqgen.bits.amplitude_sine import AmplitudeSine
 
+# TCXO objects
+from peregrine.iqgen.bits.tcxo_poly import TCXOPoly
+from peregrine.iqgen.bits.tcxo_sine import TCXOSine
+
 # from signals import GPS, GPS_L2C_Signal, GPS_L1CA_Signal
 import peregrine.iqgen.bits.signals as signals
 
@@ -61,6 +65,7 @@ from peregrine.iqgen.bits.encoder_gps import GPSL1L2TwoBitsEncoder
 from peregrine.iqgen.generate import generateSamples
 
 from peregrine.iqgen.bits.satellite_factory import factoryObject as satelliteFO
+from peregrine.iqgen.bits.tcxo_factory import factoryObject as tcxoFO
 
 import json
 
@@ -249,6 +254,41 @@ def prepareArgsParser():
         raise ValueError("Unsupported amplitude type")
       sv.setAmplitude(amplitude)
 
+  class UpdateTcxoType(UpdateSv):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(UpdateTcxoType, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      if namespace.tcxo_type == "poly":
+        coeffs = []
+        hasHighOrder = False
+
+        srcA = [namespace.tcxo_a3, namespace.tcxo_a2,
+                namespace.tcxo_a1, namespace.tcxo_a0]
+        for a in srcA:
+          if a is not None:
+            coeffs.append(a)
+            hasHighOrder = True
+          elif hasHighOrder:
+            coeffs.append(0.)
+        tcxo = TCXOPoly(coeffs)
+      elif namespace.tcxo_type == "sine":
+        initial = 0.
+        ampl = 0.5
+        period_s = 1.
+        if namespace.tcxo_a0 is not None:
+          ampl = namespace.tcxo_a0
+        if namespace.amplitude_a1 is not None:
+          ampl = namespace._a1
+        if namespace.tcxo_period is not None:
+          period_s = namespace.tcxo_period
+
+        tcxo = TCXOSine(initial, ampl, period_s)
+      else:
+        raise ValueError("Unsupported amplitude type")
+      namespace.tcxo = tcxo
+
   class UpdateMessageType(UpdateSv):
 
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -309,7 +349,8 @@ def prepareArgsParser():
               'symbol_delay': namespace.symbol_delay,
               'generate': namespace.generate,
               'snr': namespace.snr,
-              'lpf': namespace.lpf
+              'lpf': namespace.lpf,
+              'tcxo': tcxoFO.toMapForm(namespace.tcxo)
               }
       json.dump(data, values, indent=2)
       values.close()
@@ -329,6 +370,7 @@ def prepareArgsParser():
       namespace.generate = loaded['generate']
       namespace.snr = loaded['snr']
       namespace.lpf = loaded['lpf']
+      namespace.tcxo = tcxoFO.fromMapForm(loaded['tcxo'])
       namespace.gps_sv = [
           satelliteFO.fromMapForm(sv) for sv in loaded['gps_sv']]
       values.close()
@@ -415,6 +457,32 @@ def prepareArgsParser():
   parser.add_argument('--snr',
                       type=float,
                       help="SNR for noise generation")
+  parser.add_argument('--tcxo-type',
+                      choices=["poly", "sine"],
+                      help="TCXO drift type",
+                      action=UpdateTcxoType)
+  parser.add_argument('--tcxo-a0',
+                      type=float,
+                      help="TCXO a0 coefficient for polynomial TCXO drift"
+                           " or initial shift for sine TCXO drift",
+                      action=UpdateTcxoType)
+  parser.add_argument('--tcxo-a1',
+                      type=float,
+                      help="TCXO a1 coefficient for polynomial TCXO drift"
+                           " or amplitude for sine TCXO drift",
+                      action=UpdateTcxoType)
+  parser.add_argument('--tcxo-a2',
+                      type=float,
+                      help="TCXO a2 coefficient for polynomial TCXO drift",
+                      action=UpdateTcxoType)
+  parser.add_argument('--tcxo-a3',
+                      type=float,
+                      help="TCXO a3 coefficient for polynomial TCXO drift",
+                      action=UpdateTcxoType)
+  parser.add_argument('--tcxo-period',
+                      type=float,
+                      help="TCXO period in seconds for sine TCXO drift",
+                      action=UpdateTcxoType)
   parser.add_argument('--debug',
                       type=argparse.FileType('wb'),
                       help="Debug output file")
@@ -454,6 +522,8 @@ def prepareArgsParser():
                       default=False,
                       help="Do not generate output.")
 
+  parser.set_defaults(tcxo=TCXOPoly(()))
+
   return parser
 
 
@@ -488,8 +558,10 @@ def main():
   print "\tBatch size:", outputConfig.SAMPLE_BATCH_SIZE
   print "\tGPS L1 IF:", outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
   print "\tGPS L2 IF:", outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
-
-  print "Satellites: ", args.gps_sv
+  print "Other parameters:"
+  print "\tTCXO:", args.tcxo
+  print "\tSNR:", args.snr
+  print "\tSatellites:", args.gps_sv
 
   # Check which signals are enabled on each of satellite to select proper
   # output encoder
@@ -555,6 +627,7 @@ def main():
                   time0_s,
                   n_samples,
                   outputConfig,
+                  tcxo=args.tcxo,
                   SNR=args.snr,
                   lowPass=args.lpf,
                   logFile=args.debug,
