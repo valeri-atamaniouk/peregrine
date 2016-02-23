@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,8 +9,8 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.encoder_gps` module contains classes and functions
-related to generating GPS signal output.
+The :mod:`peregrine.iqgen.bits.encoder_gps` module contains classes and
+functions related to generating GPS signal output.
 
 """
 
@@ -17,10 +18,12 @@ from peregrine.iqgen.bits.encoder_base import Encoder
 from peregrine.iqgen.bits.encoder_1bit import BandBitEncoder
 from peregrine.iqgen.bits.encoder_2bits import BandTwoBitsEncoder
 
+
 class GPSL1BitEncoder(BandBitEncoder):
   '''
   Generic single bit encoder for GPS L1 C/A signal
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A band single bit encoder object.
@@ -32,10 +35,12 @@ class GPSL1BitEncoder(BandBitEncoder):
     '''
     super(GPSL1BitEncoder, self).__init__(outputConfig.GPS.L1.INDEX)
 
+
 class GPSL2BitEncoder(BandBitEncoder):
   '''
   Generic single bit encoder for GPS L2 Civil signal
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L2 C band single bit encoder object.
@@ -47,10 +52,12 @@ class GPSL2BitEncoder(BandBitEncoder):
     '''
     super(GPSL2BitEncoder, self).__init__(outputConfig.GPS.L2.INDEX)
 
+
 class GPSL1L2BitEncoder(Encoder):
   '''
   Generic single bit encoder for GPS L1 C/A and L2 Civil signals
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A and L2 C dual band single bit encoder object.
@@ -95,10 +102,12 @@ class GPSL1L2BitEncoder(Encoder):
     else:
       return Encoder.EMPTY_RESULT
 
+
 class GPSL1TwoBitsEncoder(BandTwoBitsEncoder):
   '''
   Generic single bit encoder for GPS L1 C/A signal
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A band single bit encoder object.
@@ -110,10 +119,12 @@ class GPSL1TwoBitsEncoder(BandTwoBitsEncoder):
     '''
     super(GPSL1TwoBitsEncoder, self).__init__(outputConfig.GPS.L1.INDEX)
 
+
 class GPSL2TwoBitsEncoder(BandTwoBitsEncoder):
   '''
   Generic single bit encoder for GPS L2 Civil signal
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L2 C band single bit encoder object.
@@ -125,10 +136,12 @@ class GPSL2TwoBitsEncoder(BandTwoBitsEncoder):
     '''
     super(GPSL2TwoBitsEncoder, self).__init__(outputConfig.GPS.L2.INDEX)
 
+
 class GPSL1L2TwoBitsEncoder(Encoder):
   '''
   Generic single bit encoder for GPS L1 C/A and L2 Civil signals
   '''
+
   def __init__(self, outputConfig):
     '''
     Constructs GPS L1 C/A and L2 C dual band single bit encoder object.

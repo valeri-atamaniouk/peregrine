@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,8 +9,8 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.message_zeroone` module contains classes and functions
-related to symbol contents that flips the value every other bit.
+The :mod:`peregrine.iqgen.bits.message_zeroone` module contains classes and
+functions related to symbol contents that flips the value every other bit.
 
 """
 

@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -15,6 +16,7 @@ related to base implementation of doppler class.
 
 import scipy.constants
 import numpy
+
 
 class DopplerBase(object):
   '''
@@ -173,8 +175,8 @@ class DopplerBase(object):
     '''
 
     chipAll_long = chipAll_idx.astype(numpy.long)
-    dataBits = message.getDataBits(chipAll_long / carrierSignal.CHIP_TO_SYMBOL_DIVIDER)
+    dataBits = message.getDataBits(
+        chipAll_long / carrierSignal.CHIP_TO_SYMBOL_DIVIDER)
     result = code.combineData(chipAll_long, dataBits)
 
     return result
-

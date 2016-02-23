@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,12 +9,13 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.signals` module contains classes and functions
+The :mod:`peregrine.iqgen.bits.signals` module contains classes and functions
 related to common satellite signal definitions and operations.
 
 """
 
 import scipy.constants
+
 
 class GPS:
   '''

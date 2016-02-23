@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,13 +9,14 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.low_pass_filter` module contains classes and functions
-related to generated signal attenuation.
+The :mod:`peregrine.iqgen.bits.low_pass_filter` module contains classes and
+functions related to generated signal attenuation.
 
 """
 
 from scipy.signal.signaltools import lfiltic, lfilter
 from scipy.signal import cheby2
+
 
 class LowPassFilter(object):
   '''

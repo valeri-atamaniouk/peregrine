@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,14 +9,15 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.encoder_2bits` module contains classes and functions
-related to generating two bits signal output.
+The :mod:`peregrine.iqgen.bits.encoder_2bits` module contains classes and
+functions related to generating two bits signal output.
 
 """
 
 import numpy
 
 from peregrine.iqgen.bits.encoder_base import Encoder
+
 
 class BandTwoBitsEncoder(Encoder):
   '''

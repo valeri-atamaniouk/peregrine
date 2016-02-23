@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,12 +9,13 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.encoder_base` module contains classes and functions
-related to generating signal output.
+The :mod:`peregrine.iqgen.bits.encoder_base` module contains classes and
+functions related to generating signal output.
 
 """
 
 import numpy
+
 
 class Encoder(object):
   '''
@@ -84,7 +86,7 @@ class Encoder(object):
     n_bytes = self.n_bits / 8
     n_offset = n_bytes * 8
     n_left = self.n_bits - n_offset
-    res = numpy.packbits(self.bits[0 : n_offset])
+    res = numpy.packbits(self.bits[0: n_offset])
     self.bits[0:n_left] = self.bits[n_offset:n_offset + n_left]
     self.n_bits = n_left
     return res
@@ -101,4 +103,3 @@ class Encoder(object):
     '''
     if len(self.bits) < self.n_bits + extraBits:
       self.bits.resize(self.n_bits + extraBits)
-

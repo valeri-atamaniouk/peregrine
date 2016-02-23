@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -8,14 +9,15 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.doppler_linear` module contains classes and functions
-related to generation of signals with polynomial-based movement.
+The :mod:`peregrine.iqgen.bits.oppler_poly` module contains classes and
+functions related to generation of signals with polynomial-based movement.
 
 """
 
 import numpy
 import scipy.constants
 from peregrine.iqgen.bits.doppler_base import DopplerBase
+
 
 class Doppler(DopplerBase):
   '''
@@ -219,6 +221,7 @@ class Doppler(DopplerBase):
     scipy.multiply(signal, chips, signal)
     return (signal, doppler, chipAll_idx, chips)
 
+
 def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
   '''
   Makes an object that corresponds to linear doppler change.
@@ -244,6 +247,7 @@ def linearDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerChange_hzps):
 
   return Doppler((accel_mps2, speed0_mps, distance0_m))
 
+
 def constDoppler(distance0_m, frequency_hz, doppler_hz):
   '''
   Makes an object that corresponds to a constant doppler value.
@@ -264,6 +268,7 @@ def constDoppler(distance0_m, frequency_hz, doppler_hz):
   '''
   speed_mps = -scipy.constants.c / frequency_hz * doppler_hz
   return Doppler((speed_mps, distance0_m))
+
 
 def zeroDoppler(distance_m, frequency_hz):
   '''

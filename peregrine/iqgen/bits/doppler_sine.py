@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -7,8 +8,8 @@
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 """
-The :mod:`peregrine.iqgen.doppler_sine` module contains classes and functions
-related to generation of signals with circular changing doppler.
+The :mod:`peregrine.iqgen.bits.doppler_sine` module contains classes and
+functions related to generation of signals with circular changing doppler.
 
 """
 
@@ -57,7 +58,8 @@ class Doppler(DopplerBase):
       Literal presentation of object
     '''
     return "SineDoppler(distance0_m={}, speed0_mps={}, amplitude_mps={}, period_s={})".\
-      format(self.distance0_m, self.speed0_mps, self.amplutude_mps, self.period_s)
+        format(self.distance0_m, self.speed0_mps,
+               self.amplutude_mps, self.period_s)
 
   def __repr__(self):
     '''
@@ -89,7 +91,8 @@ class Doppler(DopplerBase):
       Distance to satellite in meters.
     '''
     return self.distance0_m + self.speed0_mps * svTime_s + \
-       self.amplutude_mps * (1 - numpy.cos(Doppler.TWO_PI * svTime_s / self.period_s))
+        self.amplutude_mps * \
+        (1 - numpy.cos(Doppler.TWO_PI * svTime_s / self.period_s))
 
   def computeSpeedMps(self, svTime_s):
     '''
@@ -107,7 +110,7 @@ class Doppler(DopplerBase):
       Speed of satellite in meters per second.
     '''
     return self.speed0_mps + self.amplutude_mps * \
-           numpy.sin(Doppler.TWO_PI * svTime_s / self.period_s)
+        numpy.sin(Doppler.TWO_PI * svTime_s / self.period_s)
 
   def computeBatch(self,
                    userTimeAll_s,
@@ -192,7 +195,8 @@ class Doppler(DopplerBase):
 
     # PRN and data index computation
     # Computing doppler coefficients
-    chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / carrierSignal.CENTER_FREQUENCY_HZ
+    chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / \
+        carrierSignal.CENTER_FREQUENCY_HZ
     D_C0 = D_0 * chipFreqRatio
     D_C1 = D_1 * chipFreqRatio
     D_C2 = D_2  # * chipFreqRatio
@@ -214,9 +218,11 @@ class Doppler(DopplerBase):
     elif algMode == 3:
       pass
 
-    chips = self.computeDataNChipVector(chipAll_idx, carrierSignal, message, code)
+    chips = self.computeDataNChipVector(
+        chipAll_idx, carrierSignal, message, code)
     scipy.multiply(signal, chips, signal)
     return (signal, doppler, chipAll_idx, chips)
+
 
 def sineDoppler(distance0_m, frequency_hz, doppler0_hz, dopplerAmplitude_hz, dopplerPeriod_s):
   '''

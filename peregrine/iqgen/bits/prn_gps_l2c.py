@@ -1,4 +1,5 @@
 # Copyright (C) 2016 Swift Navigation Inc.
+# Contact: Valeri Atamaniouk <valeri@swiftnav.com>
 #
 # This source is subject to the license found in the file 'LICENSE' which must
 # be be distributed together with this source. All other rights reserved.
@@ -7,15 +8,17 @@
 # EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
+
 """
-The :mod:`peregrine.iqgen.prn_gps_l2c` module contains classes and functions
-related to GPS L2C PRN processing
+The :mod:`peregrine.iqgen.bits.prn_gps_l2c` module contains classes and
+functions related to GPS L2C PRN processing
 
 """
 
 import numpy
 
 from peregrine.include.generateL2CMcode import L2CMCodes
+
 
 class PrnCode(object):
   '''
@@ -40,7 +43,8 @@ class PrnCode(object):
       '''
       super(PrnCode.CM_Code, self).__init__()
       self.caCode = L2CMCodes[prnNo - 1][:]
-      self.binCode = numpy.ndarray(PrnCode.CM_Code.CODE_LENGTH, dtype=numpy.bool)
+      self.binCode = numpy.ndarray(
+          PrnCode.CM_Code.CODE_LENGTH, dtype=numpy.bool)
       self.binCode[:] = numpy.asarray(self.caCode) < 0
       self.prnNo = prnNo
 
@@ -81,7 +85,8 @@ class PrnCode(object):
       '''
       super(PrnCode.CL_Code, self).__init__()
       self.prnNo = prnNo
-      self.binCode = numpy.ndarray(PrnCode.CL_Code.CODE_LENGTH, dtype=numpy.bool)
+      self.binCode = numpy.ndarray(
+          PrnCode.CL_Code.CODE_LENGTH, dtype=numpy.bool)
       self.binCode.fill(False)
       self.binCode[1::2].fill(True)
 
