@@ -9,13 +9,13 @@
 # WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 
 """
-The :mod:`peregrine.iqgen.bits.low_pass_filter` module contains classes and
+The :mod:`peregrine.iqgen.bits.filter_lowpass` module contains classes and
 functions related to generated signal attenuation.
 
 """
 
-from scipy.signal.signaltools import lfiltic, lfilter
-from scipy.signal import cheby2
+from scipy.signal.signaltools import lfiltic
+from scipy.signal import cheby2, cheb2ord
 
 
 class LowPassFilter(object):
@@ -43,13 +43,23 @@ class LowPassFilter(object):
     frequency_hz : float
       Intermediate frequency
     '''
-    super(LowPassFilter, self).__init__()
+    super(LowPassFilter, self).__init__(frequency_hz + 3e6)
 
-    self.nbw = frequency_hz + 3e6
+    passBandAtt_dbhz = 3.
+    stopBandAtt_dbhz = 40.
+    passBand_hz = self.nbw_hz / outputConfig.SAMPLE_RATE_HZ
+    stopBand_hz = self.nbw_hz * 1.1 / outputConfig.SAMPLE_RATE_HZ
+    mult = 2. / outputConfig.SAMPLE_RATE_HZ
+    order, wn = cheb2ord(wp=passBand_hz * mult,
+                         ws=stopBand_hz * mult,
+                         gpass=passBandAtt_dbhz,
+                         gstop=stopBandAtt_dbhz,
+                         analog=False)
 
-    b, a = cheby2(5,  # Order of the filter
-                  40,  # Minimum attenuation required in the stop band in dB
-                  self.nbw / outputConfig.SAMPLE_RATE_HZ,
+    b, a = cheby2(order,  # Order of the filter
+                  # Minimum attenuation required in the stop band in dB
+                  stopBandAtt_dbhz,
+                  wn,
                   btype="lowpass",
                   analog=False,
                   output='ba')
@@ -57,30 +67,3 @@ class LowPassFilter(object):
     self.a = a
     self.b = b
     self.zi = lfiltic(self.b, self.a, [])
-
-  def getNBW(self):
-    '''
-    Returns
-    -------
-    float
-      Noise bandwidth.
-    '''
-    return self.nbw
-
-  def filter(self, data):
-    '''
-    Performs noise reduction using Chebyshev type 2 IIR filter.
-
-    Parameters
-    ----------
-    data : array-like
-      Data samples before LPF processing
-
-    Returns
-    -------
-    array-like
-      Data samples after LPF processing
-    '''
-    data_out, zo = lfilter(self.b, self.a, data, zi=self.zi)
-    self.zi = zo
-    return data_out

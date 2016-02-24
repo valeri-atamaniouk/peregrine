@@ -289,7 +289,7 @@ def constDoppler(distance0_m, tec_epm2, frequency_hz, doppler_hz):
     Object that implements constant speed logic.
   '''
   speed_mps = -scipy.constants.c / frequency_hz * doppler_hz
-  return Doppler(distance0_m=distance0_m, tec_epm2=tec_epm2, coeffs=(speed_mps))
+  return Doppler(distance0_m=distance0_m, tec_epm2=tec_epm2, coeffs=(speed_mps,))
 
 
 def zeroDoppler(distance_m, tec_epm2, frequency_hz):

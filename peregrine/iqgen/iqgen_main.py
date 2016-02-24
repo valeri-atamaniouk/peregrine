@@ -353,7 +353,7 @@ def prepareArgsParser():
               'symbol_delay': namespace.symbol_delay,
               'generate': namespace.generate,
               'snr': namespace.snr,
-              'lpf': namespace.lpf,
+              'filter_type': namespace.filter_type,
               'tcxo': tcxoFO.toMapForm(namespace.tcxo)
               }
       json.dump(data, values, indent=2)
@@ -373,7 +373,7 @@ def prepareArgsParser():
       namespace.symbol_delay = loaded['symbol_delay']
       namespace.generate = loaded['generate']
       namespace.snr = loaded['snr']
-      namespace.lpf = loaded['lpf']
+      namespace.filter_type = loaded['filter_type']
       namespace.tcxo = tcxoFO.fromMapForm(loaded['tcxo'])
       namespace.gps_sv = [
           satelliteFO.fromMapForm(sv) for sv in loaded['gps_sv']]
@@ -461,10 +461,10 @@ def prepareArgsParser():
   parser.add_argument('--chip_delay',
                       type=int,
                       help="Initial chip index")
-  parser.add_argument('--lpf',
-                      default=False,
-                      help="Enable low pass filter",
-                      action='store_true')
+  parser.add_argument('--filter-type',
+                      default='none',
+                      choices=['none', 'lowpass', 'bandpass'],
+                      help="Enable filter")
   parser.add_argument('--snr',
                       type=float,
                       help="SNR for noise generation")
@@ -640,7 +640,7 @@ def main():
                   outputConfig,
                   tcxo=args.tcxo,
                   SNR=args.snr,
-                  lowPass=args.lpf,
+                  filterType=args.filter_type,
                   logFile=args.debug,
                   threadCount=args.jobs)
   args.output.close()

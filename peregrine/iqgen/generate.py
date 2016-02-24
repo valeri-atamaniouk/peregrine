@@ -16,7 +16,8 @@ The :mod:`peregrine.iqgen.generate` module contains classes and functions
 related to main loop of samples generation.
 
 """
-from peregrine.iqgen.bits.low_pass_filter import LowPassFilter
+from peregrine.iqgen.bits.filter_lowpass import LowPassFilter
+from peregrine.iqgen.bits.filter_bandpass import BandPassFilter
 
 from peregrine.iqgen.bits import signals
 
@@ -240,7 +241,7 @@ def generateSamples(outputFile,
                     outputConfig,
                     SNR=None,
                     tcxo=None,
-                    lowPass=False,
+                    filterType="none",
                     logFile=None,
                     threadCount=1):
   '''
@@ -264,8 +265,8 @@ def generateSamples(outputFile,
     When specified, adds random noise to the output.
   tcxo : object, optional
     When specified, controls TCXO drift
-  lowPass : bool, optional
-    Controls LPF signal post-processing. Disabled by default.
+  filterType : string, optional
+    Controls IIR/FIR signal post-processing. Disabled by default.
   debugLog : bool, optional
     Control generation of additional debug output. Disabled by default.
   '''
@@ -285,12 +286,32 @@ def generateSamples(outputFile,
   lpf = [None] * len(bands)
   bandsEnabled = [False] * len(bands)
 
+  bandPass = False
+  lowPass = False
+  if filterType == 'lowpass':
+    lowPass = True
+  elif filterType == 'bandpass':
+    bandPass = True
+  elif filterType == 'none':
+    pass
+  else:
+    raise ValueError("Invalid filter type %s" % repr(filter))
+
   for band in bands:
     for sv in sv_list:
       bandsEnabled[band.INDEX] |= sv.isBandEnabled(band.INDEX, outputConfig)
+
+    filterObject = None
     if lowPass:
-      lpf[band.INDEX] = LowPassFilter(outputConfig,
-                                      band.INTERMEDIATE_FREQUENCY_HZ)
+      filterObject = LowPassFilter(outputConfig,
+                                   band.INTERMEDIATE_FREQUENCY_HZ)
+    elif bandPass:
+      filterObject = BandPassFilter(outputConfig,
+                                    band.INTERMEDIATE_FREQUENCY_HZ)
+    if filterObject:
+      lpf[band.INDEX] = filterObject
+      logger.debug("Band %d filter NBW is %f" %
+                   (band.INDEX, filterObject.getNBW()))
 
   if SNR is not None:
     sourcePower = 0.
@@ -368,7 +389,8 @@ def generateSamples(outputFile,
       print "  .L1 CNo: %f" % (svCNoL1)
     if lpf[1]:
       nbwL2 = lpf[1].getNBW()
-      svCNoL2 = svSNR + 10. * numpy.log10(2. * nbwL2) - 3
+      # CNo for L2: 20ms integration (+13dB), half power used (-3dB)
+      svCNoL2 = svSNR + 10. * numpy.log10(2. * nbwL2) - 3 + 13
       print "  .L2 CNo: %f" % (svCNoL2)
     print "}"
 
