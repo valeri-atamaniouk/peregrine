@@ -45,9 +45,11 @@ class LowPassFilter(object):
     '''
     super(LowPassFilter, self).__init__()
 
+    self.nbw = frequency_hz + 3e6
+
     b, a = cheby2(5,  # Order of the filter
                   40,  # Minimum attenuation required in the stop band in dB
-                  (frequency_hz + 3e6) / outputConfig.SAMPLE_RATE_HZ,
+                  self.nbw / outputConfig.SAMPLE_RATE_HZ,
                   btype="lowpass",
                   analog=False,
                   output='ba')
@@ -55,6 +57,15 @@ class LowPassFilter(object):
     self.a = a
     self.b = b
     self.zi = lfiltic(self.b, self.a, [])
+
+  def getNBW(self):
+    '''
+    Returns
+    -------
+    float
+      Noise bandwidth.
+    '''
+    return self.nbw
 
   def filter(self, data):
     '''

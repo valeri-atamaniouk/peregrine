@@ -21,6 +21,7 @@ from peregrine.iqgen.bits.low_pass_filter import LowPassFilter
 from peregrine.iqgen.bits import signals
 
 import scipy
+import numpy
 import time
 
 # import threading
@@ -65,11 +66,15 @@ class Task(object):
     self.generateDebug = generateDebug
     self.noiseSigma = noiseSigma
     self.tcxo = tcxo
-    self.signals = scipy.ndarray(
-        (4, outputConfig.SAMPLE_BATCH_SIZE), dtype=float)
+    self.signals = scipy.ndarray(shape=(4, outputConfig.SAMPLE_BATCH_SIZE),
+                                 dtype=numpy.float)
     if noiseSigma is not None:
       # Initialize signal array with noise
-      self.noise = noiseSigma * scipy.randn(4, outputConfig.SAMPLE_BATCH_SIZE)
+      # self.noise = noiseSigma * scipy.randn(4, outputConfig.SAMPLE_BATCH_SIZE)
+      self.noise = numpy.random.normal(loc=0.,
+                                       scale=noiseSigma,
+                                       size=(4, outputConfig.SAMPLE_BATCH_SIZE))
+      # print self.noise
     else:
       self.noise = None
     self.nSamples = outputConfig.SAMPLE_BATCH_SIZE
@@ -272,6 +277,58 @@ def generateSamples(outputFile,
         outputConfig.SAMPLE_RATE_HZ, nSamples / outputConfig.SAMPLE_RATE_HZ, SNR)
   print "Jobs: ", threadCount
 
+  _t0 = time.clock()
+  _count = 0l
+
+  # Check which bands are enabled, configure band-specific parameters
+  bands = [outputConfig.GPS.L1, outputConfig.GPS.L2]  # Supported bands
+  lpf = [None] * len(bands)
+  bandsEnabled = [False] * len(bands)
+
+  for band in bands:
+    for sv in sv_list:
+      bandsEnabled[band.INDEX] |= sv.isBandEnabled(band.INDEX, outputConfig)
+    if lowPass:
+      lpf[band.INDEX] = LowPassFilter(outputConfig,
+                                      band.INTERMEDIATE_FREQUENCY_HZ)
+
+  if SNR is not None:
+    sourcePower = 0.
+    for sv in sv_list:
+      svMeanPower = sv.getAmplitude().computeMeanPower()
+      sourcePower += svMeanPower
+      logger.debug("[%s] Estimated mean power is %f" %
+                   (sv.getSvName(), svMeanPower))
+    meanPower = sourcePower / len(sv_list)
+    meanAmplitude = scipy.sqrt(meanPower)
+    logger.debug("Estimated total signal power is %f, mean %f, mean amplitude %f" %
+                 (sourcePower, meanPower, meanAmplitude))
+
+    # Nsigma and while noise amplitude computation: check if the Nsigma is
+    # actually a correct value for white noise with normal distribution.
+    Nsigma = scipy.sqrt(meanPower / (2. * 10. ** (float(SNR) / 10.)))
+    logger.info("Selected noise sigma %f for SNR %f" % (Nsigma, float(SNR)))
+    noisePower = scipy.square(Nsigma)
+
+    for sv in sv_list:
+      svMeanPower = sv.getAmplitude().computeMeanPower()
+      svSNR = 10. * numpy.log10(svMeanPower / (sourcePower + noisePower) / 2.)
+      logger.info("[%s] Estimated SNR is %f" % (sv.getSvName(), svSNR))
+      if lpf[0]:
+        nbwL1 = lpf[0].getNBW()
+        svCNoL1 = svSNR + 10. * numpy.log10(2. * nbwL1)
+        logger.info("[%s] Estimated CN0 for L1 is %f" %
+                    (sv.getSvName(), svCNoL1))
+      if lpf[1]:
+        nbwL2 = lpf[1].getNBW()
+        svCNoL2 = svSNR + 10. * numpy.log10(2. * nbwL2) - 3
+        logger.info("[%s] Estimated CN0 for L2 is %f" %
+                    (sv.getSvName(), svCNoL2))
+
+  else:
+    Nsigma = None
+    logger.info("SNR is not provided, noise is not generated.")
+
   #
   # Print out SV parameters
   #
@@ -302,49 +359,18 @@ def generateSamples(outputFile,
     print "    .l1_message: {}".format(_sv.getL1CAMessage())
     print "    .l2_message: {}".format(_sv.getL2CMessage())
     print "  .doppler: {}".format(_sv.doppler)
+    svMeanPower = _sv.getAmplitude().computeMeanPower()
+    svSNR = 10. * numpy.log10(svMeanPower / (sourcePower + noisePower) / 2.)
+    print "  .SNR: %f" % svSNR
+    if lpf[0]:
+      nbwL1 = lpf[0].getNBW()
+      svCNoL1 = svSNR + 10. * numpy.log10(2. * nbwL1)
+      print "  .L1 CNo: %f" % (svCNoL1)
+    if lpf[1]:
+      nbwL2 = lpf[1].getNBW()
+      svCNoL2 = svSNR + 10. * numpy.log10(2. * nbwL2) - 3
+      print "  .L2 CNo: %f" % (svCNoL2)
     print "}"
-
-  _t0 = time.clock()
-  _count = 0l
-
-  if SNR is not None:
-    sourcePower = 0.
-    for sv in sv_list:
-      svMeanPower = sv.getAmplitude().computeMeanPower()
-      sourcePower += svMeanPower
-      logger.debug("[%s] Estimated mean power is %f" %
-                   (sv.getSvName(), svMeanPower))
-    meanPower = sourcePower / len(sv_list)
-    meanAmplitude = scipy.sqrt(meanPower)
-    logger.debug("Estimated total signal power is %f, mean %f, mean amplitude %f" %
-                 (sourcePower, meanPower, meanAmplitude))
-
-    # Nsigma and while noise amplitude computation: check if the Nsigma is
-    # actually a correct value for white noise with normal distribution.
-    Nsigma = scipy.sqrt(meanPower / (2. * 10. ** (float(SNR) / 10.)))
-    logger.info("Selected noise sigma %f for SNR %f" % (Nsigma, float(SNR)))
-    noisePower = scipy.square(Nsigma)
-
-    for sv in sv_list:
-      svMeanPower = sv.getAmplitude().computeMeanPower()
-      svSNR = 10. * scipy.log10(svMeanPower / (sourcePower + noisePower) / 2.)
-      logger.info("[%s] Estimated SNR is %f" % (sv.getSvName(), svSNR))
-
-  else:
-    Nsigma = None
-    logger.info("SNR is not provided, noise is not generated.")
-
-  # Check which bands are enabled, configure band-specific parameters
-  bands = [outputConfig.GPS.L1, outputConfig.GPS.L2]  # Supported bands
-  lpf = [None] * len(bands)
-  bandsEnabled = [False] * len(bands)
-
-  for band in bands:
-    for sv in sv_list:
-      bandsEnabled[band.INDEX] |= sv.isBandEnabled(band.INDEX, outputConfig)
-    if lowPass:
-      lpf[band.INDEX] = LowPassFilter(outputConfig,
-                                      band.INTERMEDIATE_FREQUENCY_HZ)
 
   userTime_s = float(time0S)
 
