@@ -52,7 +52,8 @@ class ObjectFactory(object):
             'l1caMessage': messageOF.toMapForm(obj.getL1CAMessage()),
             'l2cMessage': messageOF.toMapForm(obj.getL2CMessage()),
             'doppler': dopplerOF.toMapForm(obj.getDoppler()),
-            'l2clCodeType': obj.getL2CLCodeType()
+            'l2clCodeType': obj.getL2CLCodeType(),
+            'codeDopplerIgnored': obj.isCodeDopplerIgnored()
             }
     return data
 
@@ -65,6 +66,7 @@ class ObjectFactory(object):
     l1caMessage = messageOF.fromMapForm(data['l1caMessage'])
     l2cMessage = messageOF.fromMapForm(data['l2cMessage'])
     clCodeType = data['l2clCodeType']
+    codeDopplerIgnored = data['codeDopplerIgnored']
     satellite = GPSSatellite(prn)
     satellite.setAmplitude(amplitude)
     satellite.setDoppler(doppler)
@@ -73,6 +75,7 @@ class ObjectFactory(object):
     satellite.setL1CAMessage(l1caMessage)
     satellite.setL2CMessage(l2cMessage)
     satellite.setL2CLCodeType(clCodeType)
+    satellite.setCodeDopplerIgnored(codeDopplerIgnored)
     return satellite
 
 factoryObject = ObjectFactory()

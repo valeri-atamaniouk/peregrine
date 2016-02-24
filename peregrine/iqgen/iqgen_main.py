@@ -128,6 +128,7 @@ def prepareArgsParser():
 
       # Reset all configuration parameters
       namespace.l2cl_code_type = '01'
+      namespace.ignore_code_doppler = False
 
       # Doppler
       namespace.doppler_type = "zero"
@@ -224,6 +225,14 @@ def prepareArgsParser():
       else:
         raise ValueError("Unsupported doppler type")
       sv.doppler = doppler
+
+  class DisableCodeDoppler(UpdateSv):
+
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+      super(DisableCodeDoppler, self).__init__(option_strings, dest, **kwargs)
+
+    def doUpdate(self, sv, parser, namespace, values, option_string):
+      sv.getDoppler().setCodeDopplerDisabled(True)
 
   class UpdateAmplitudeType(UpdateSv):
 
@@ -427,6 +436,9 @@ def prepareArgsParser():
                       type=float,
                       help="Doppler change period (seconds)",
                       action=UpdateDopplerType)
+  parser.add_argument('--ignore-code-doppler',
+                      help="Disable doppler for code and data processing",
+                      action=DisableCodeDoppler)
   parser.add_argument('--amplitude-type',
                       default="poly",
                       choices=["poly", "sine"],

@@ -72,7 +72,10 @@ class Doppler(DopplerBase):
     string
       Literal presentation of object
     '''
-    return "DopplerPoly(coeffs={})".format(self.coeffs)
+    return "DopplerPoly(coeffs={}, distance0_m={}," \
+           " tec_epm2={} codeDopplerIgnored={})". \
+           format(self.coeffs, self.distance0_m,
+                  self.tec_epm2, self.codeDopplerIgnored)
 
   def computeDistanceM(self, svTime_s):
     '''
@@ -218,17 +221,20 @@ class Doppler(DopplerBase):
     amplitude.applyAmplitude(signal, userTimeAll_s)
 
     # PRN and data index computation
-    # Computing doppler coefficients
-    chipFreqRatio = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c
+    if self.codeDopplerIgnored:
+      chipAll_idx = userTimeAll_s * carrierSignal.CODE_CHIP_RATE_HZ
+    else:
+      # Computing doppler coefficients
+      chipFreqRatio = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c
 
-    if algMode == 1:
-      chipAll_idx = doppler * chipFreqRatio
-      chipAll_idx += (carrierSignal.CODE_CHIP_RATE_HZ + d_1 * chipFreqRatio)
-      chipAll_idx *= userTimeAll_s
-      chipAll_idx += d_0 * chipFreqRatio
-    elif algMode == 2:
-      chipAll_idx = doppler * chipFreqRatio
-      chipAll_idx += carrierSignal.CODE_CHIP_RATE_HZ * userTimeAll_s
+      if algMode == 1:
+        chipAll_idx = doppler * chipFreqRatio
+        chipAll_idx += (carrierSignal.CODE_CHIP_RATE_HZ + d_1 * chipFreqRatio)
+        chipAll_idx *= userTimeAll_s
+        chipAll_idx += d_0 * chipFreqRatio
+      elif algMode == 2:
+        chipAll_idx = doppler * chipFreqRatio
+        chipAll_idx += carrierSignal.CODE_CHIP_RATE_HZ * userTimeAll_s
 
     chips = self.computeDataNChipVector(chipAll_idx,
                                         carrierSignal,

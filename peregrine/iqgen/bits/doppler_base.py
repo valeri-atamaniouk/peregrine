@@ -23,11 +23,6 @@ class DopplerBase(object):
   Doppler control for a signal source that moves with a constant speed.
   '''
 
-  NAME = "Doppler"
-
-  # Internal value
-  __startIndex = numpy.iinfo(long).min
-
   def __init__(self, distance0_m=0., tec_epm2=50.,  dtype=numpy.longdouble):
     '''
     Constructs doppler base object for movement control.
@@ -46,6 +41,30 @@ class DopplerBase(object):
     self.distance0_m = distance0_m
     self.tec_epm2 = tec_epm2
     self.dtype = dtype
+    self.codeDopplerIgnored = False
+
+  def isCodeDopplerIgnored(self):
+    '''
+    Checks if the code is ignoring doppler control.
+
+    Returns
+    -------
+    bool
+      When True, the sample generator ignores doppler shift for data and code
+      processing.
+    '''
+    return self.codeDopplerIgnored
+
+  def setCodeDopplerIgnored(self, value):
+    '''
+    Changes doppler control for data and code processing
+
+    Parameters
+    ----------
+    value : bool
+      True - ignore doppler for code and data processing, False - apply doppler.
+    '''
+    self.codeDopplerIgnored = value
 
   def computeSignalDelayS(self, frequency_hz):
     '''

@@ -59,10 +59,11 @@ class Doppler(DopplerBase):
     string
       Literal presentation of object
     '''
-    return "SineDoppler(distance0_m={}, tec_epm2={}, " \
-           "speed0_mps={}, amplitude_mps={}, period_s={})".\
+    return "SineDoppler(distance0_m={}, tec_epm2={}," \
+           " speed0_mps={}, amplitude_mps={}, period_s={}," \
+           " codeDopplerIgnored={})".\
         format(self.distance0_m, self.tec_epm2, self.speed0_mps,
-               self.amplutude_mps, self.period_s)
+               self.amplutude_mps, self.period_s, self.codeDopplerIgnored)
 
   def __repr__(self):
     '''
@@ -200,29 +201,32 @@ class Doppler(DopplerBase):
     amplitude.applyAmplitude(signal, userTimeAll_s)
 
     # PRN and data index computation
-    # Computing doppler coefficients
-    chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / \
-        carrierSignal.CENTER_FREQUENCY_HZ
-    D_C0 = D_0 * chipFreqRatio
-    D_C1 = D_1 * chipFreqRatio
-    D_C2 = D_2  # * chipFreqRatio
-    # D_C3 = D_3 * chipFreqRatio
+    if self.codeDopplerIgnored:
+      chipAll_idx = userTimeAll_s * carrierSignal.CODE_CHIP_RATE_HZ
+    else:
+      # Computing doppler coefficients
+      chipFreqRatio = carrierSignal.CODE_CHIP_RATE_HZ / \
+          carrierSignal.CENTER_FREQUENCY_HZ
+      D_C0 = D_0 * chipFreqRatio
+      D_C1 = D_1 * chipFreqRatio
+      D_C2 = D_2  # * chipFreqRatio
+      # D_C3 = D_3 * chipFreqRatio
 
-    if algMode == 1:
-      chipAll_idx = userTimeAll_s * D_C2
-      numpy.cos(chipAll_idx, out=chipAll_idx)
-      chipAll_idx -= 1.
-      chipAll_idx *= -D_C1
-      chipAll_idx += (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ) * userTimeAll_s
-      # chipAll_idx += D_C3
-    elif algMode == 2:
-      # chipAll_idx = copy(..)
-      chipAll_idx *= -D_C1
-      C = (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ)
-      chipAll_idx += C * userTimeAll_s
-      # chipAll_idx += D_C3
-    elif algMode == 3:
-      pass
+      if algMode == 1:
+        chipAll_idx = userTimeAll_s * D_C2
+        numpy.cos(chipAll_idx, out=chipAll_idx)
+        chipAll_idx -= 1.
+        chipAll_idx *= -D_C1
+        chipAll_idx += (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ) * userTimeAll_s
+        # chipAll_idx += D_C3
+      elif algMode == 2:
+        # chipAll_idx = copy(..)
+        chipAll_idx *= -D_C1
+        C = (D_C0 + carrierSignal.CODE_CHIP_RATE_HZ)
+        chipAll_idx += C * userTimeAll_s
+        # chipAll_idx += D_C3
+      elif algMode == 3:
+        pass
 
     chips = self.computeDataNChipVector(
         chipAll_idx, carrierSignal, message, code)
