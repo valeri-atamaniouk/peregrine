@@ -127,6 +127,7 @@ def prepareArgsParser():
       namespace.gps_sv.append(sv)
 
       # Reset all configuration parameters
+      namespace.l2cl_code_type = '01'
 
       # Doppler
       namespace.doppler_type = "zero"
@@ -183,6 +184,7 @@ def prepareArgsParser():
         l2cEnabled = True
       else:
         raise ValueError()
+      sv.setL2CLCodeType(namespace.l2cl_code_type)
       sv.setL1CAEnabled(l1caEnabled)
       sv.setL2CEnabled(l2cEnabled)
 
@@ -389,6 +391,11 @@ def prepareArgsParser():
                       default="l1ca",
                       choices=["l1ca", "l2c", "l1ca+l2c"],
                       help="Signal bands to enable",
+                      action=UpdateBands)
+  parser.add_argument('--l2cl-code-type',
+                      default='01',
+                      choices=['01', '1', '0'],
+                      help="GPS L2 CL code type",
                       action=UpdateBands)
   parser.add_argument('--doppler-type',
                       default="zero",

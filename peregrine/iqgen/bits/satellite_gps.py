@@ -40,8 +40,9 @@ class GPSSatellite(Satellite):
     '''
     super(GPSSatellite, self).__init__("GPS {}".format(prnNo))
     self.prn = prnNo
+    self.l2clCodeType = '01'
     self.l1caCode = GPS_L1CA_Code(prnNo)
-    self.l2cCode = GPS_L2C_Code(prnNo)
+    self.l2cCode = GPS_L2C_Code(prnNo, self.l2clCodeType)
     self.l1caEnabled = False
     self.l2cEnabled = False
     self.l1caMessage = DEFAULT_MESSAGE
@@ -93,6 +94,14 @@ class GPSSatellite(Satellite):
       True, when L2 C signal generation is enabled, False otherwise
     '''
     return self.l2cEnabled
+
+  def setL2CLCodeType(self, clCodeType):
+    if self.l2clCodeType != clCodeType:
+      self.l2cCode = GPS_L2C_Code(self.prn, clCodeType)
+      self.l2clCodeType = clCodeType
+
+  def getL2CLCodeType(self):
+    return self.l2clCodeType
 
   def setL1CAMessage(self, message):
     '''

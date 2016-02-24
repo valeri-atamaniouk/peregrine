@@ -74,7 +74,7 @@ class PrnCode(object):
     CODE_LENGTH = 767250
     CODE_FREQUENCY_HZ = 511.5e3
 
-    def __init__(self, prnNo):
+    def __init__(self, prnNo, codeType):
       '''
       Initializes object.
 
@@ -82,13 +82,23 @@ class PrnCode(object):
       ----------
       prnNo : int
         SV identifier
+      codeType : string
+        Type of the code: '01', '1', '0'
       '''
       super(PrnCode.CL_Code, self).__init__()
       self.prnNo = prnNo
       self.binCode = numpy.ndarray(
           PrnCode.CL_Code.CODE_LENGTH, dtype=numpy.bool)
-      self.binCode.fill(False)
-      self.binCode[1::2].fill(True)
+      if codeType == '01':
+        self.binCode.fill(False)
+        self.binCode[1::2].fill(True)
+      elif codeType == '1':
+        self.binCode.fill(True)
+      elif codeType == '0':
+        self.binCode.fill(False)
+      else:
+        raise ValueError('Unsupported GPS L2 CL generator type %s ' %
+                         str(codeType))
 
     def getCodeBits(self):
       return self.binCode
@@ -117,7 +127,7 @@ class PrnCode(object):
   CODE_LENGTH = CL_Code.CODE_LENGTH * 2
   CODE_FREQUENCY_HZ = 1023e3
 
-  def __init__(self, prnNo):
+  def __init__(self, prnNo, clCodeType):
     '''
     Initializes object.
 
@@ -125,9 +135,11 @@ class PrnCode(object):
     ----------
     prnNo : int
       SV identifier
+    clCodeType : string
+      Type of the code: '01', '1', '0'
     '''
     super(PrnCode, self).__init__()
-    self.cl = PrnCode.CL_Code(prnNo)
+    self.cl = PrnCode.CL_Code(prnNo, clCodeType)
     self.cm = PrnCode.CM_Code(prnNo)
     self.bitLookup = numpy.asarray([1, -1], dtype=numpy.int8)
     tmp = numpy.ndarray(PrnCode.CL_Code.CODE_LENGTH * 2, dtype=numpy.uint8)

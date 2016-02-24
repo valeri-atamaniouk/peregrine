@@ -379,6 +379,7 @@ def generateSamples(outputFile,
     print "    .l2_chip:    {}".format(_c2)
     print "    .l1_message: {}".format(_sv.getL1CAMessage())
     print "    .l2_message: {}".format(_sv.getL2CMessage())
+    print "    .l2_cl:      {}".format(_sv.getL2CLCodeType())
     print "  .doppler: {}".format(_sv.doppler)
     svMeanPower = _sv.getAmplitude().computeMeanPower()
     svSNR = 10. * numpy.log10(svMeanPower / (sourcePower + noisePower) / 2.)
