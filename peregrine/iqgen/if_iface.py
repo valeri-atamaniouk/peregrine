@@ -173,7 +173,7 @@ class CustomRateConfig(object):
     GPS band information
   '''
   NAME = "Custom configuration for fast tests"
-  SAMPLE_RATE_HZ = peregrineDefaults.sampling_freq
+  SAMPLE_RATE_HZ = peregrineDefaults.freq_profile_peregrine['sampling_freq']
   SAMPLE_BATCH_SIZE = 100000
 
   class GPS(object):
@@ -198,7 +198,8 @@ class CustomRateConfig(object):
       INDEX : int
         Band index
       '''
-      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.IF
+      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.freq_profile_peregrine[
+          'L1_IF']
       INDEX = 0
 
     class L2(object):
@@ -212,5 +213,6 @@ class CustomRateConfig(object):
       INDEX : int
         Band index
       '''
-      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.IF
+      INTERMEDIATE_FREQUENCY_HZ = peregrineDefaults.freq_profile_peregrine[
+          'L2_IF']
       INDEX = 1

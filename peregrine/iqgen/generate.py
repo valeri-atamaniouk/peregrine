@@ -278,7 +278,8 @@ def generateSamples(outputFile,
                     tcxo=None,
                     filterType="none",
                     logFile=None,
-                    threadCount=1):
+                    threadCount=0,
+                    pbar=None):
   '''
   Generates samples.
 
@@ -553,8 +554,11 @@ def generateSamples(outputFile,
     encodeDuration_s = time.time() - encodeStartTime_s
     totalEncodeTime_s += encodeDuration_s
 
-  print "MAIN: Encode duration:", totalEncodeTime_s
-  print "MAIN: wait duration:", totalWaitTime_s
+    if pbar:
+      pbar.update(_firstSampleIndex + _sampleCount)
+
+  logger.debug("MAIN: Encode duration: %f" % totalEncodeTime_s)
+  logger.debug("MAIN: wait duration: %f" % totalWaitTime_s)
 
   encodedSamples = encoder.flush()
   if len(encodedSamples) > 0:

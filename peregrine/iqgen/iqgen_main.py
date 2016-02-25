@@ -18,6 +18,13 @@ import time
 import argparse
 import scipy.constants
 import numpy
+import json
+
+try:
+  import progressbar
+  hasProgressBar = True
+except:
+  hasProgressBar = False
 
 from peregrine.iqgen.bits.satellite_gps import GPSSatellite
 
@@ -66,8 +73,6 @@ from peregrine.iqgen.generate import generateSamples
 
 from peregrine.iqgen.bits.satellite_factory import factoryObject as satelliteFO
 from peregrine.iqgen.bits.tcxo_factory import factoryObject as tcxoFO
-
-import json
 
 
 def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
@@ -651,6 +656,17 @@ def main():
 
   print "Generating {} samples for {} seconds".format(n_samples, args.generate)
 
+  if hasProgressBar:
+    widgets = ['Generating ',
+               progressbar.Counter(), ' ',
+               progressbar.Percentage(), ' ',
+               progressbar.ETA(), ' ',
+               progressbar.Bar()]
+    pbar = progressbar.ProgressBar(widgets=widgets,
+                                   maxval=n_samples).start()
+  else:
+    pbar = None
+
   generateSamples(args.output,
                   args.gps_sv,
                   encoder,
@@ -661,8 +677,11 @@ def main():
                   SNR=args.snr,
                   filterType=args.filter_type,
                   logFile=args.debug,
-                  threadCount=args.jobs)
+                  threadCount=args.jobs,
+                  pbar=pbar)
   args.output.close()
+  # if pbar:
+  # pbar.finish()
 
   duration_s = time.time() - startTime_s
   ratio = n_samples / duration_s
