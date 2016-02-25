@@ -87,5 +87,5 @@ class AmplitudeSine(AmplitudeBase):
       Mean signal power for the configured amplitude
     '''
     amplitude = self.amplitude * 0.707 + self.initial
-    result = numpy.square(amplitude) * 0.5
+    result = numpy.square(amplitude)
     return result

@@ -89,7 +89,7 @@ class AmplitudePoly(AmplitudeBase):
     '''
     poly = self.poly
     if poly is not None:
-      result = numpy.square(poly(0.)) * 0.5
+      result = numpy.square(poly(0.))
     else:
-      result = 0.5
+      result = 1.
     return result

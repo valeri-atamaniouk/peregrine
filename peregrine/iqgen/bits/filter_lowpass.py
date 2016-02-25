@@ -43,22 +43,20 @@ class LowPassFilter(object):
     frequency_hz : float
       Intermediate frequency
     '''
-    super(LowPassFilter, self).__init__(frequency_hz + 3e6)
+    super(LowPassFilter, self).__init__(3., 40.)
 
-    passBandAtt_dbhz = 3.
-    stopBandAtt_dbhz = 40.
     passBand_hz = self.nbw_hz / outputConfig.SAMPLE_RATE_HZ
     stopBand_hz = self.nbw_hz * 1.1 / outputConfig.SAMPLE_RATE_HZ
     mult = 2. / outputConfig.SAMPLE_RATE_HZ
     order, wn = cheb2ord(wp=passBand_hz * mult,
                          ws=stopBand_hz * mult,
-                         gpass=passBandAtt_dbhz,
-                         gstop=stopBandAtt_dbhz,
+                         gpass=self.passBandAtt_dbhz,
+                         gstop=self.stopBandAtt_dbhz,
                          analog=False)
 
     b, a = cheby2(order,  # Order of the filter
                   # Minimum attenuation required in the stop band in dB
-                  stopBandAtt_dbhz,
+                  self.stopBandAtt_dbhz,
                   wn,
                   btype="lowpass",
                   analog=False,

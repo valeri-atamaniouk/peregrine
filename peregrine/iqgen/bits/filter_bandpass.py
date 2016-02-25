@@ -37,10 +37,8 @@ class BandPassFilter(FilterBase):
     nbw_hz : float, optional
       Noise bandwidth in hertz
     '''
-    super(BandPassFilter, self).__init__(nbw_hz)
+    super(BandPassFilter, self).__init__(3., 40.)
 
-    passBandAtt_dbhz = 3.
-    stopBandAtt_dbhz = 40.
     passBand_hz = nbw_hz * 0.5 / outputConfig.SAMPLE_RATE_HZ
     stopBand_hz = nbw_hz * 0.6 / outputConfig.SAMPLE_RATE_HZ
     mult = 2. / outputConfig.SAMPLE_RATE_HZ
@@ -48,13 +46,13 @@ class BandPassFilter(FilterBase):
                              (frequency_hz + passBand_hz) * mult],
                          ws=[(frequency_hz - stopBand_hz) * mult,
                              (frequency_hz + stopBand_hz) * mult],
-                         gpass=passBandAtt_dbhz,
-                         gstop=stopBandAtt_dbhz,
+                         gpass=self.passBandAtt_dbhz,
+                         gstop=self.stopBandAtt_dbhz,
                          analog=False)
 
     b, a = cheby2(order,  # Order of the filter
                   # Minimum attenuation required in the stop band in dB
-                  stopBandAtt_dbhz,
+                  self.stopBandAtt_dbhz,
                   wn,
                   btype="bandpass",
                   analog=False,

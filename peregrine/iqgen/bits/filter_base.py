@@ -19,30 +19,38 @@ from scipy.signal import lfilter
 
 class FilterBase(object):
 
-  def __init__(self, nbw_hz):
+  def __init__(self, passBandAtt_dbhz, stopBandAtt_dbhz):
     '''
     Parameters
     ----------
-    nbw_hz : float
-      Noise bandwidth
-    b, a : array-like
-      IIR/FIR filter coefficients
-    zi : object
-      Initial filter state
+    passBandAtt_dbhz : float
+      Pass band attenutation in dB*Hz
+    stopBandAtt_dbhz: float
+      Stop band attenutation in dB*Hz
     '''
-    self.nbw_hz = nbw_hz
+    self.passBandAtt_dbhz = passBandAtt_dbhz
+    self.stopBandAtt_dbhz = stopBandAtt_dbhz
     self.a = None
     self.b = None
     self.zi = None
 
-  def getNBW(self):
+  def getPassBandAtt(self):
     '''
     Returns
     -------
     float
-      Noise bandwidth.
+      Pass band attenuation in dB*Hz.
     '''
-    return self.nbw_hz
+    return self.passBandAtt_dbhz
+
+  def getStopBandAtt(self):
+    '''
+    Returns
+    -------
+    float
+      Pass band attenuation in dB*Hz.
+    '''
+    return self.stopBandAtt_dbhz
 
   def filter(self, data):
     '''
