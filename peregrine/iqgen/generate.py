@@ -372,7 +372,8 @@ def generateSamples(outputFile,
                 (noiseSigma, noiseVariance, float(SNR)))
 
   else:
-    Nsigma = None
+    noiseVariance = None
+    noiseSigma = None
     logger.info("SNR is not provided, noise is not generated.")
 
   #
@@ -391,7 +392,10 @@ def generateSamples(outputFile,
     _d2 = signals.GPS.L2C.calcDopplerShiftHz(_dist0_m, _speed_mps)
     svMeanPower = _sv.getAmplitude().computeMeanPower()
     # SNR for a satellite. Depends on sampling rate.
-    svSNR = svMeanPower / (4. * noiseVariance) * freqTimesTau
+    if noiseVariance:
+      svSNR = svMeanPower / (4. * noiseVariance) * freqTimesTau
+    else:
+      svSNR = 1e6
     svSNR_db = 10. * numpy.log10(svSNR)
     # Filters lower the power according to their attenuation levels
     l1FA_db = lpf[0].getPassBandAtt() if lpf[0] else 0.
@@ -428,7 +432,7 @@ def generateSamples(outputFile,
   if threadCount > 0:
     workerPool = [Worker(outputConfig,
                          sv_list,
-                         Nsigma,
+                         noiseSigma,
                          tcxo,
                          lpf,
                          debugFlag) for _ in range(threadCount)]

@@ -24,7 +24,7 @@ class BandPassFilter(FilterBase):
   Chebyshev type 2 band-pass filter.
   '''
 
-  def __init__(self, outputConfig, frequency_hz, nbw_hz=1e6):
+  def __init__(self, outputConfig, frequency_hz, bw_hz=1e6):
     '''
     Initialize filter object.
 
@@ -34,13 +34,15 @@ class BandPassFilter(FilterBase):
       Output configuration parameters object
     frequency_hz : float
       Intermediate frequency in hertz
-    nbw_hz : float, optional
+    bw_hz : float, optional
       Noise bandwidth in hertz
     '''
     super(BandPassFilter, self).__init__(3., 40.)
 
-    passBand_hz = nbw_hz * 0.5 / outputConfig.SAMPLE_RATE_HZ
-    stopBand_hz = nbw_hz * 0.6 / outputConfig.SAMPLE_RATE_HZ
+    self.bw_hz = bw_hz
+    self.frequency_hz = frequency_hz
+    passBand_hz = bw_hz * 0.5 / outputConfig.SAMPLE_RATE_HZ
+    stopBand_hz = bw_hz * 0.6 / outputConfig.SAMPLE_RATE_HZ
     mult = 2. / outputConfig.SAMPLE_RATE_HZ
     order, wn = cheb2ord(wp=[(frequency_hz - passBand_hz) * mult,
                              (frequency_hz + passBand_hz) * mult],
@@ -61,3 +63,8 @@ class BandPassFilter(FilterBase):
     self.a = a
     self.b = b
     self.zi = lfiltic(self.b, self.a, [])
+
+  def __str__(self, *args, **kwargs):
+    return "BandPassFilter(center=%f, bw=%f, pb=%f, sp=%f)" % \
+           (self.frequency_hz, self.bw_hz,
+            self.passBandAtt_dbhz, self.stopBandAtt_dbhz)

@@ -19,7 +19,7 @@ import argparse
 import scipy.constants
 import numpy
 import json
-
+import logging
 try:
   import progressbar
   hasProgressBar = True
@@ -73,6 +73,8 @@ from peregrine.iqgen.generate import generateSamples
 
 from peregrine.iqgen.bits.satellite_factory import factoryObject as satelliteFO
 from peregrine.iqgen.bits.tcxo_factory import factoryObject as tcxoFO
+
+logger = logging.getLogger(__name__)
 
 
 def computeTimeDelay(doppler, symbol_index, chip_index, signal, code):
@@ -588,15 +590,15 @@ def main():
     raise ValueError()
 
   print "Output configuration:"
-  print "\tDescription:", outputConfig.NAME
-  print "\tSampling rate:", outputConfig.SAMPLE_RATE_HZ
-  print "\tBatch size:", outputConfig.SAMPLE_BATCH_SIZE
-  print "\tGPS L1 IF:", outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
-  print "\tGPS L2 IF:", outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
+  print "  Description:    ", outputConfig.NAME
+  print "  Sampling rate:  ", outputConfig.SAMPLE_RATE_HZ
+  print "  Batch size:     ", outputConfig.SAMPLE_BATCH_SIZE
+  print "  GPS L1 IF:      ", outputConfig.GPS.L1.INTERMEDIATE_FREQUENCY_HZ
+  print "  GPS L2 IF:      ", outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
   print "Other parameters:"
-  print "\tTCXO:", args.tcxo
-  print "\tSNR:", args.snr
-  print "\tSatellites:", args.gps_sv
+  print "  TCXO:           ", args.tcxo
+  print "  SNR:            ", args.snr
+  print "  tSatellites:    ", args.gps_sv
 
   # Check which signals are enabled on each of satellite to select proper
   # output encoder
@@ -649,12 +651,13 @@ def main():
                              initial_chip_idx,
                              signal,
                              code)
-  print "Computed symbol/chip delay={} seconds".format(time0_s)
+  logger.debug("Computed symbol/chip delay={} seconds".format(time0_s))
 
   startTime_s = time.time()
   n_samples = long(outputConfig.SAMPLE_RATE_HZ * args.generate)
 
-  print "Generating {} samples for {} seconds".format(n_samples, args.generate)
+  logger.debug("Generating {} samples for {} seconds".
+               format(n_samples, args.generate))
 
   if hasProgressBar:
     widgets = ['Generating ',
@@ -685,7 +688,8 @@ def main():
 
   duration_s = time.time() - startTime_s
   ratio = n_samples / duration_s
-  print "Total time = {} sec. Ratio={} samples per second".format(duration_s, ratio)
+  logger.debug("Total time = {} sec. Ratio={} samples per second".
+               format(duration_s, ratio))
 
 if __name__ == '__main__':
   main()

@@ -17,8 +17,14 @@ functions related to generated signal attenuation.
 from scipy.signal.signaltools import lfiltic
 from scipy.signal import cheby2, cheb2ord
 
+import logging
 
-class LowPassFilter(object):
+from peregrine.iqgen.bits.filter_base import FilterBase
+
+logger = logging.getLogger(__name__)
+
+
+class LowPassFilter(FilterBase):
   '''
   Chebyshev type 2 low-pass filter.
 
@@ -45,14 +51,17 @@ class LowPassFilter(object):
     '''
     super(LowPassFilter, self).__init__(3., 40.)
 
-    passBand_hz = self.nbw_hz / outputConfig.SAMPLE_RATE_HZ
-    stopBand_hz = self.nbw_hz * 1.1 / outputConfig.SAMPLE_RATE_HZ
+    self.bw_hz = 1e3
+    passBand_hz = self.bw_hz / outputConfig.SAMPLE_RATE_HZ
+    stopBand_hz = self.bw_hz * 1.1 / outputConfig.SAMPLE_RATE_HZ
     mult = 2. / outputConfig.SAMPLE_RATE_HZ
     order, wn = cheb2ord(wp=passBand_hz * mult,
                          ws=stopBand_hz * mult,
                          gpass=self.passBandAtt_dbhz,
                          gstop=self.stopBandAtt_dbhz,
                          analog=False)
+    self.order = order
+    self.wn = wn
 
     b, a = cheby2(order,  # Order of the filter
                   # Minimum attenuation required in the stop band in dB
@@ -65,3 +74,8 @@ class LowPassFilter(object):
     self.a = a
     self.b = b
     self.zi = lfiltic(self.b, self.a, [])
+
+  def __str__(self, *args, **kwargs):
+    return "LowPassFilter(bw=%f, pb=%f, sp=%f, order=%d, wn=%s)" % \
+           (self.bw_hz, self.passBandAtt_dbhz,
+            self.stopBandAtt_dbhz, self.order, str(self.wn))
