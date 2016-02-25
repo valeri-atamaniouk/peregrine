@@ -38,7 +38,7 @@ class GPSSatellite(Satellite):
     prnNo : int
       GPS satellite number for selecting PRN.
     '''
-    super(GPSSatellite, self).__init__("GPS {}".format(prnNo))
+    super(GPSSatellite, self).__init__("GPS{}".format(prnNo))
     self.prn = prnNo
     self.l2clCodeType = '01'
     self.l1caCode = GPS_L1CA_Code(prnNo)
@@ -179,7 +179,8 @@ class GPSSatellite(Satellite):
       numpy.add(samples[frequencyIndex],
                 values[0],
                 out=samples[frequencyIndex])
-      result.append(values)
+      debugData = {'type': "GPSL1", 'doppler': values[1]}
+      result.append(debugData)
     if (self.l2cEnabled):
       intermediateFrequency_hz = outputConfig.GPS.L2.INTERMEDIATE_FREQUENCY_HZ
       frequencyIndex = outputConfig.GPS.L2.INDEX
@@ -193,7 +194,8 @@ class GPSSatellite(Satellite):
       numpy.add(samples[frequencyIndex],
                 values[0],
                 out=samples[frequencyIndex])
-      result.append(values)
+      debugData = {'type': "GPSL2", 'doppler': values[1]}
+      result.append(debugData)
     return result
 
   def isBandEnabled(self, bandIndex, outputConfig):

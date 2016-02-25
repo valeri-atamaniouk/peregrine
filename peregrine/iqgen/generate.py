@@ -160,7 +160,8 @@ class Task(object):
       sigs += noise
 
     if generateDebug:
-      debugData = []
+      signalData = []
+      debugData = {'time': userTimeAll_s, 'signalData': signalData}
     else:
       debugData = None
 
@@ -172,7 +173,8 @@ class Task(object):
                                        outputConfig)
       # Debugging output
       if generateDebug:
-        debugData.append(t)
+        svDebug = {'name': signalSource.getSvName(), 'data': t}
+        signalData.append(svDebug)
       t = None
 
     if signalFilters is list:
@@ -429,6 +431,17 @@ def generateSamples(outputFile,
   deltaUserTime_s = computeTimeIntervalS(outputConfig)
   debugFlag = logFile is not None
 
+  if debugFlag:
+    logFile.write("Index,Time")
+    for sv in sv_list:
+      svName = sv.getSvName()
+      if sv.isL1CAEnabled():
+        logFile.write(",%s/L1/doppler" % svName)
+      if sv.isL2CEnabled():
+        logFile.write(",%s/L2/doppler" % svName)
+    # End of line
+    logFile.write("\n")
+
   if threadCount > 0:
     workerPool = [Worker(outputConfig,
                          sv_list,
@@ -527,22 +540,18 @@ def generateSamples(outputFile,
     if logFile is not None:
       # Data from all satellites is collected. Now we can dump the debug matrix
 
-      userTimeAll_s = debugData[0]
+      userTimeAll_s = debugData['time']
+      signalData = debugData['signalData']
       for smpl_idx in range(_sampleCount):
-        logFile.write("{},{},".format(_firstSampleIndex + smpl_idx,
-                                      userTimeAll_s[smpl_idx]))
-        for svIdx in range(len(sv_list)):
-          # signalSource = signalSources[svIdx]
-          sv_bands = debugData[svIdx]
-          for band in sv_bands:
-            sv_sigs = band[0]
-            doppler = band[1]
-            idx = band[2]
-            codes = band[3]
-            logFile.write("{},{},{},{}".format(sv_sigs[smpl_idx],
-                                               doppler[smpl_idx],
-                                               idx[smpl_idx],
-                                               codes[smpl_idx]))
+        logFile.write("{},{}".format(_firstSampleIndex + smpl_idx,
+                                     userTimeAll_s[smpl_idx]))
+        for svIdx in range(len(signalData)):
+          # signalSourceName = signalData[svIdx]['name']
+          signalSourceData = signalData[svIdx]['data']
+          for band in signalSourceData:
+            # bandType = band['type']
+            doppler = band['doppler']
+            logFile.write(",{}".format(doppler[smpl_idx]))
         # End of line
         logFile.write("\n")
 
