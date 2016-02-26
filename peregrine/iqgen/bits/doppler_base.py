@@ -42,6 +42,7 @@ class DopplerBase(object):
     self.tec_epm2 = tec_epm2
     self.dtype = dtype
     self.codeDopplerIgnored = False
+    self.twoPi = scipy.constants.pi * 2.
 
   def isCodeDopplerIgnored(self):
     '''
@@ -152,7 +153,9 @@ class DopplerBase(object):
                    carrierSignal,
                    ifFrequency_hz,
                    message,
-                   code):
+                   code,
+                   outputConfig,
+                   debug):
     '''
     Computes signal samples for the doppler object.
 
@@ -170,6 +173,8 @@ class DopplerBase(object):
       Message object for providing access to symbols
     code : object
       PRN code object for providing access to chips
+    debug : bool
+      Debug flag
 
     Returns
     -------
@@ -182,7 +187,47 @@ class DopplerBase(object):
     chips : numpy.ndarray(n_samples, dtype=int)
       Code combined with data
     '''
-    raise NotImplementedError()
+
+    userTimeAll_s = self.applySignalDelays(userTimeAll_s, carrierSignal)
+
+    # Computing doppler coefficients
+    twoPi = self.twoPi
+
+    # Sine wave phase without doppler
+    phaseAll = userTimeAll_s * (twoPi * ifFrequency_hz)
+    # Get doppler shift in meters
+    doppler_m = self.computeDopplerShiftM(userTimeAll_s)
+    # Doppler for carrier center frequency
+    carrFreqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
+    phaseAll += doppler_m * (carrFreqRatio * twoPi)
+
+    # Convert phase to signal value and multiply by amplitude
+    signal = scipy.cos(phaseAll)
+
+    if amplitude:
+      amplitude.applyAmplitude(signal, userTimeAll_s)
+
+    # PRN and data index computation
+    chipAll_idx = userTimeAll_s * carrierSignal.CODE_CHIP_RATE_HZ
+    if self.codeDopplerIgnored:
+      pass
+    else:
+      # Computing doppler coefficients
+      chipFreqRatio = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c
+      chipAll_idx += doppler_m * chipFreqRatio
+
+    chips = self.computeDataNChipVector(chipAll_idx,
+                                        carrierSignal,
+                                        message,
+                                        code)
+
+    # Combine data and sine wave
+    signal *= chips
+
+    # Generate debug data
+    doppler_hz = self.computeDopplerShiftHz(userTimeAll_s,
+                                            carrierSignal) if debug else None
+    return (signal, doppler_hz)
 
   @staticmethod
   def computeDeltaUserTimeS(userTime0_s, n_samples, outputConfig):
@@ -253,3 +298,37 @@ class DopplerBase(object):
     result = code.combineData(chipAll_long, dataBits)
 
     return result
+
+  def computeDopplerShiftM(self, userTimeAll_s):
+    '''
+    Method to compute metric doppler shift
+
+    Parameters
+    ----------
+    userTimeAll_s : numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Time vector for sample timestamps in seconds
+
+    Returns
+    -------
+    numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Computed doppler shift in meters
+    '''
+    raise NotImplementedError("Metric doppler computation is not implemented")
+
+  def computeDopplerShiftHz(self, userTimeAll_s, carrierSignal):
+    '''
+    Method to compute doppler shift in Hz.
+
+    Parameters
+    ----------
+    userTimeAll_s : numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Time vector for sample timestamps in seconds
+    carrierSignal : object
+      Carrier signal parameters
+
+    Returns
+    -------
+    numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Computed doppler frquency shift in hertz
+    '''
+    raise NotImplementedError("Metric doppler computation is not implemented")

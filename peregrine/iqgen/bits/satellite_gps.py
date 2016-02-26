@@ -147,7 +147,7 @@ class GPSSatellite(Satellite):
     '''
     return self.l2cMessage
 
-  def getBatchSignals(self, userTimeAll_s, samples, outputConfig):
+  def getBatchSignals(self, userTimeAll_s, samples, outputConfig, debug):
     '''
     Generates signal samples.
 
@@ -159,6 +159,8 @@ class GPSSatellite(Satellite):
       Array to which samples are added.
     outputConfig : object
       Output configuration object.
+    debug : bool
+      Debug flag
 
     Returns
     -------
@@ -175,7 +177,8 @@ class GPSSatellite(Satellite):
                                          intermediateFrequency_hz,
                                          self.l1caMessage,
                                          self.l1caCode,
-                                         outputConfig)
+                                         outputConfig,
+                                         debug)
       numpy.add(samples[frequencyIndex],
                 values[0],
                 out=samples[frequencyIndex])
@@ -190,7 +193,8 @@ class GPSSatellite(Satellite):
                                          intermediateFrequency_hz,
                                          self.l2cMessage,
                                          self.l2cCode,
-                                         outputConfig)
+                                         outputConfig,
+                                         debug)
       numpy.add(samples[frequencyIndex],
                 values[0],
                 out=samples[frequencyIndex])

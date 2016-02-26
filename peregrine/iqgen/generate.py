@@ -170,7 +170,8 @@ class Task(object):
       # Add signal from source (satellite) to signal accumulator
       t = signalSource.getBatchSignals(userTimeAll_s,
                                        sigs,
-                                       outputConfig)
+                                       outputConfig,
+                                       generateDebug)
       # Debugging output
       if generateDebug:
         svDebug = {'name': signalSource.getSvName(), 'data': t}

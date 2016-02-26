@@ -119,129 +119,54 @@ class Doppler(DopplerBase):
     else:
       return 0.
 
-  def computeBatch(self,
-                   userTimeAll_s,
-                   amplitude,
-                   carrierSignal,
-                   ifFrequency_hz,
-                   message,
-                   code,
-                   outputConfig):
+  def computeDopplerShiftM(self, userTimeAll_s):
     '''
-    Computes signal samples for the doppler object.
+    Method to compute metric doppler shift
 
     Parameters
     ----------
-    userTimeAll_s : numpy.ndarray(dtype=numpy.float)
-      Sample timestamps in seconds
-    amplitude : object
-      Signal amplitude.
-    carrierSignal : object
-      Carrier frequency object
-    ifFrequency_hz: float
-      Intermediate frequency in hertz
-    message : object
-      Message object for providing access to symbols
-    code : object
-      PRN code object for providing access to chips
-    outputConfig : object
-      Output configuration object, containing sampling rate etc.
+    userTimeAll_s : numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Time vector for sample timestamps in seconds
 
     Returns
     -------
-    signal : numpy.ndarray(n_samples, dtype=float)
-      Generated samples
-    userTimeX_s : float
-      End of interval time in seconds
-    chipAll_idx : numpy.ndarray(n_samples, dtype=float)
-      Code chip phases for the samples
-    chips : numpy.ndarray(n_samples, dtype=int)
-      Code combined with data
+    numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Computed doppler shift in meters
     '''
-
-    userTimeAll_s = self.applySignalDelays(userTimeAll_s, carrierSignal)
-    n_samples = len(userTimeAll_s)
-
-    # Computing doppler coefficients
-    freqRatio = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
-
-    algMode = 1
-    if algMode == 1:
-      doppler = numpy.ndarray(n_samples, dtype=self.dtype)
-      coeffs = self.distanceCoeffs
-      n_coeffs = self.n_coeffs
-      if n_coeffs > 2:
-        # Linear doppler acceleration and further higher-order changes
-        # Compute phase accumulator for all orders except 1.
-        # This approach saves one vector multiplication.
-        d_1 = coeffs[n_coeffs - 2]
-        d_0 = coeffs[n_coeffs - 1]
-        doppler.fill(coeffs[0])
-        for i in range(1, n_coeffs - 2):
-          doppler *= userTimeAll_s
-          doppler += coeffs[i]
-        doppler *= userTimeAll_s
-      elif n_coeffs == 2:
-        # Constant doppler
-        d_1 = coeffs[0]
-        d_0 = coeffs[1]
-        doppler.fill(0.)
-      elif n_coeffs == 1:
-        # Constant shift
-        d_1 = 0.
-        d_0 = coeffs[0]
-        doppler.fill(0.)
-      else:
-        # No phase shift
-        d_1 = 0.
-        d_0 = 0.
-        doppler.fill(0)
-
-      # Phase vector now contains everything except the frequency and d_1
-      phaseAll = doppler * freqRatio
-      phaseAll += (ifFrequency_hz + d_1 * freqRatio)
-      phaseAll *= userTimeAll_s
-      phaseAll += d_0 * freqRatio
-      phaseAll *= Doppler.TWO_PI
-    elif algMode == 2:
-      # Simple computation using polynomial function.
-      distancePoly = self.distancePoly
-      if distancePoly is not None:
-        doppler = distancePoly(userTimeAll_s)
-      else:
-        # No phase shift
-        doppler.fill(0)
-
-      # Phase vector now contains everything except the frequency and d_1
-      phaseAll = doppler * (freqRatio * Doppler.TWO_PI)
-      phaseAll += (Doppler.TWO_PI * ifFrequency_hz) * userTimeAll_s
-
-    # Convert phase to signal value and multiply by amplitude
-    signal = scipy.cos(phaseAll)
-    amplitude.applyAmplitude(signal, userTimeAll_s)
-
-    # PRN and data index computation
-    if self.codeDopplerIgnored:
-      chipAll_idx = userTimeAll_s * carrierSignal.CODE_CHIP_RATE_HZ
+    distancePoly = self.distancePoly
+    if distancePoly is not None:
+      # Slower, but simple
+      doppler_m = distancePoly(userTimeAll_s)
     else:
-      # Computing doppler coefficients
-      chipFreqRatio = -carrierSignal.CODE_CHIP_RATE_HZ / scipy.constants.c
+      # No phase shift
+      doppler_m = numpy.zeros_like(userTimeAll_s)
+    return doppler_m
 
-      if algMode == 1:
-        chipAll_idx = doppler * chipFreqRatio
-        chipAll_idx += (carrierSignal.CODE_CHIP_RATE_HZ + d_1 * chipFreqRatio)
-        chipAll_idx *= userTimeAll_s
-        chipAll_idx += d_0 * chipFreqRatio
-      elif algMode == 2:
-        chipAll_idx = doppler * chipFreqRatio
-        chipAll_idx += carrierSignal.CODE_CHIP_RATE_HZ * userTimeAll_s
+  def computeDopplerShiftHz(self, userTimeAll_s, carrierSignal):
+    '''
+    Method to compute doppler shift in Hz.
 
-    chips = self.computeDataNChipVector(chipAll_idx,
-                                        carrierSignal,
-                                        message,
-                                        code)
-    scipy.multiply(signal, chips, signal)
-    return (signal, doppler, chipAll_idx, chips)
+    Parameters
+    ----------
+    userTimeAll_s : numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Time vector for sample timestamps in seconds
+    carrierSignal : object
+      Carrier signal parameters
+
+    Returns
+    -------
+    numpy.ndarray(shape=(1, nSamples), dtype=numpy.float)
+      Computed doppler frquency shift in hertz
+    '''
+    speedPoly = self.speedPoly
+    if speedPoly is not None:
+      # Slower, but simple
+      c0 = -carrierSignal.CENTER_FREQUENCY_HZ / scipy.constants.c
+      doppler_hz = speedPoly(userTimeAll_s) * c0
+    else:
+      # No phase shift
+      doppler_hz = numpy.zeros_like(userTimeAll_s)
+    return doppler_hz
 
 
 def linearDoppler(distance0_m,
