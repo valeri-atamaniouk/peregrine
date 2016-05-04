@@ -108,7 +108,11 @@ def main():
     tracker_options = {'mode': 'short-long-cycles',
                        'k': args.short_long_cycles}
   else:
-    tracker_options = None
+    tracker_options = {}
+
+  tracker_options['CN0_algorithm'] = args.cn0_algorithm
+  tracker_options['CN0_filter_type'] = args.cn0_filter_type
+  tracker_options['CN0_cutoff_frequency'] = args.cn0_filter_cutoff_frequency
 
   acq_result = AcquisitionResult(prn=prn,
                                  snr=25,  # dB

@@ -160,6 +160,20 @@ def populate_peregrine_cmd_line_arguments(parser):
                                 ' integration time and tuning parameters: %s.' %
                                 str(defaults.l1ca_stage_profiles.keys()),
                            choices=defaults.l1ca_stage_profiles.keys())
+  cn0Group = parser.add_argument_group('CN0 control',
+                                       'CN0 control parameters')
+  cn0Group.add_argument("--cn0-algorithm",
+                        choices=['SNV2', 'BL2'],
+                        default=['BL2'],
+                        help="C/N0 computation algorithm: ('SNV2', 'BL2')")
+  cn0Group.add_argument("--cn0-filter-type",
+                        choices=['LP1', 'BW2'],
+                        default=['LP1'],
+                        help="C/N0 computation algorithm: ('LP1', 'BW2')")
+  cn0Group.add_argument("--cn0-filter-cutoff-frequency",
+                        type=float,
+                        default=0.6,
+                        help="C/N0 filter cut frequency in Hz")
 
   return signalParam
 
@@ -209,10 +223,17 @@ def main():
     stage2_coherent_ms = None
     stage2_params = None
 
+  tracker_options = {}
+
   if args.pipelining is not None:
-    tracker_options = {'mode': 'pipelining', 'k': args.pipelining}
+    tracker_options['mode'] = 'pipelining'
+    tracker_options['k'] = args.pipelining
   else:
-    tracker_options = None
+    pass
+
+  tracker_options['CN0_algorithm'] = args.cn0_algorithm
+  tracker_options['CN0_filter_type'] = args.cn0_filter_type
+  tracker_options['CN0_cutoff_frequency'] = args.cn0_filter_cutoff_frequency
 
   ms_to_process = int(args.ms_to_process)
 

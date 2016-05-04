@@ -15,7 +15,10 @@ import multiprocessing as mp
 import cPickle
 
 from swiftnav.track import LockDetector
-from swiftnav.track import CN0Estimator
+from swiftnav.track import CN0BLEstimator
+from swiftnav.track import CN0SNVEstimator
+from swiftnav.track import LP1Filter
+from swiftnav.track import BW2Filter
 from swiftnav.track import AliasDetector
 from swiftnav.track import AidedTrackingLoop
 from swiftnav.correlate import track_correlate
@@ -41,6 +44,9 @@ try:
   import progressbar
 except ImportError:
   _progressbar_available = False
+
+# Configure CN0 filtering algorithms and parameters
+DEFAULT_BW_HZ = 2.066e6
 
 
 class TrackingLoop(object):
@@ -175,11 +181,17 @@ class TrackingChannel(object):
         acc_len=defaults.alias_detect_interval_ms / self.coherent_ms,
         time_diff=1)
 
-    self.cn0_est = CN0Estimator(
-        bw=1e3 / self.coherent_ms,
-        cn0_0=self.cn0_0,
-        cutoff_freq=10,
-        loop_freq=self.loop_filter_params["loop_freq"]
+    self.cn0_est = self.cn0_estimator_type(
+        DEFAULT_BW_HZ,
+        self.cn0_0,
+        self.sampling_freq,
+        self.loop_filter_params["loop_freq"]
+    )
+
+    self.cn0_filt = self.cn0_filter_type(
+        self.cn0_0,
+        self.cn0_cutoff,
+        self.loop_filter_params["loop_freq"]
     )
 
     self.loop_filter = self.loop_filter_class(
@@ -219,7 +231,7 @@ class TrackingChannel(object):
     self.pipelining_k = 0.     # Error prediction coefficient for pipelining
     self.short_n_long = False  # Short/Long cycle simulation
     self.short_step = False    # Short cycle
-    if self.tracker_options:
+    if 'mode' in self.tracker_options:
       mode = self.tracker_options['mode']
       if mode == 'pipelining':
         self.pipelining = True
@@ -501,8 +513,10 @@ class TrackingChannel(object):
       self.track_result.P[self.i] = self.P
       self.track_result.L[self.i] = self.L
 
-      self.track_result.cn0[self.i] = self.cn0_est.update(
+      self.track_result.cn0_raw[self.i] = self.cn0_est.update(
           self.P.real, self.P.imag)
+      self.track_result.cn0[self.i] = self.cn0_filt.update(
+          self.track_result.cn0_raw[self.i])
 
       self.track_result.lock_detect_outo[self.i] = lock_detect_outo
       self.track_result.lock_detect_outp[self.i] = lock_detect_outp
@@ -593,10 +607,18 @@ class TrackingChannelL1CA(TrackingChannel):
           k2=self.lock_detect_params["k2"],
           lp=self.lock_detect_params["lp"],
           lo=self.lock_detect_params["lo"])
-      self.cn0_est = CN0Estimator(bw=1e3 / self.stage2_coherent_ms,
-                                  cn0_0=self.track_result.cn0[self.i - 1],
-                                  cutoff_freq=10,
-                                  loop_freq=1e3 / self.stage2_coherent_ms)
+      self.cn0_est = self.cn0_estimator_type(
+          DEFAULT_BW_HZ,
+          self.cn0_0,
+          self.sampling_freq,
+          self.loop_filter_params["loop_freq"]
+      )
+
+      self.cn0_filt = self.cn0_filter_type(
+          self.cn0_0,
+          self.cn0_cutoff,
+          self.loop_filter_params["loop_freq"]
+      )
 
     self.coherent_iter = self.coherent_ms
 
@@ -760,7 +782,7 @@ class Tracker(object):
                stage2_coherent_ms=None,
                stage2_loop_filter_params=None,
                multi=False,
-               tracker_options=None,
+               tracker_options={},
                output_file=None):
     """
     Set up tracking environment.
@@ -812,6 +834,21 @@ class Tracker(object):
     self.correlator = correlator
     self.stage2_coherent_ms = stage2_coherent_ms
     self.stage2_loop_filter_params = stage2_loop_filter_params
+    if tracker_options['CN0_algorithm'] == 'BL2':
+      self.cn0_estimator_type = CN0BLEstimator
+    elif tracker_options['CN0_algorithm'] == 'SNV2':
+      self.cn0_estimator_type = CN0SNVEstimator
+    else:
+      raise ValueError("Unknown CN0 algorithm type %s" %
+                       tracker_options['CN0_algorithm'])
+    if tracker_options['CN0_filter_type'] == 'BW2':
+      self.cn0_filter_type = BW2Filter
+    elif tracker_options['CN0_filter_type'] == 'LP1':
+      self.cn0_filter_type = LP1Filter
+    else:
+      raise ValueError("Unknown CN0 filter type %s" %
+                       tracker_options['CN0_filter_type'])
+    self.cn0_cutoff = float(tracker_options['CN0_cutoff_frequency'])
 
     if mp.cpu_count() > 1:
       self.multi = multi
@@ -948,7 +985,10 @@ class Tracker(object):
                   'correlator': self.correlator,
                   'stage2_coherent_ms': self.stage2_coherent_ms,
                   'stage2_loop_filter_params': self.stage2_loop_filter_params,
-                  'multi': self.multi}
+                  'multi': self.multi,
+                  'cn0_estimator_type': self.cn0_estimator_type,
+                  'cn0_filter_type': self.cn0_filter_type,
+                  'cn0_cutoff': self.cn0_cutoff}
     return _tracking_channel_factory(parameters)
 
   def run_channels(self, samples):
@@ -1069,6 +1109,7 @@ class TrackResults:
     self.P = np.zeros(n_points, dtype=np.complex128)
     self.L = np.zeros(n_points, dtype=np.complex128)
     self.cn0 = np.zeros(n_points)
+    self.cn0_raw = np.zeros(n_points)
     self.lock_detect_outp = np.zeros(n_points)
     self.lock_detect_outo = np.zeros(n_points)
     self.lock_detect_pcount1 = np.zeros(n_points)
@@ -1120,7 +1161,7 @@ class TrackResults:
       if self.print_start:
         f1.write("sample_index,ms_tracked,IF,doppler_phase,carr_doppler,"
                  "code_phase, code_freq,"
-                 "CN0,E_I,E_Q,P_I,P_Q,L_I,L_Q,"
+                 "CN0,CN0_RAW,E_I,E_Q,P_I,P_Q,L_I,L_Q,"
                  "lock_detect_outp,lock_detect_outo,"
                  "lock_detect_pcount1,lock_detect_pcount2,"
                  "lock_detect_lpfi,lock_detect_lpfq,alias_detect_err_hz,"
@@ -1135,6 +1176,7 @@ class TrackResults:
         f1.write("%s," % self.code_phase[i])
         f1.write("%s," % self.code_freq[i])
         f1.write("%s," % self.cn0[i])
+        f1.write("%s," % self.cn0_raw[i])
         f1.write("%s," % self.E[i].real)
         f1.write("%s," % self.E[i].imag)
         f1.write("%s," % self.P[i].real)
